@@ -1,15 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { Home as HomeIcon, Inbox, Wallet, UserRound, Power, Hourglass, Check, X, MessageCircle, Phone, Copy, Receipt, Star, Bell, LogOut, Zap, TrendingUp, ShieldAlert } from 'lucide-react';
+import { Home as HomeIcon, Inbox, Wallet, UserRound, Power, Hourglass, Check, X, MessageCircle, Phone, Copy, Receipt, Star, Bell, LogOut, Zap, TrendingUp, ShieldAlert, Radio, Navigation, Flag } from 'lucide-react';
 import { Avatar, Button, Card, Empty, Field, Page, Pill, SectionTitle, Sheet, TopBar, cx } from '@/components/ui';
 import { BikeArt, Logo } from '@/components/art';
 import { BottomNav, Chat, RouteLine, StatusPill, useUnread } from '@/components/shared';
 import { Apply, Upload } from './Apply';
+import { MapView } from '@/components/maps';
+import { mapsEnabled } from '@/lib/maps';
+import { startSharing, stopSharing, useSharing } from '@/lib/sharing';
 import { back, go, useRoute } from '@/lib/router';
 import { useStore } from '@/lib/store';
 import { DAYS, INSTAPAY_HANDLE, SUBSCRIPTION_PRICE, bikeClass } from '@/lib/config';
 import { dateStr, egp, num, timeAgo } from '@/lib/format';
-import { captainRespond, isSubscribed, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
+import { captainRespond, directionsUrl, isSubscribed, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
 import { toast } from '@/lib/toast';
 import type { Booking, CaptainProfile, User } from '@/lib/types';
 
@@ -158,6 +161,8 @@ function Dashboard({ user, cap, unread }: { user: User; cap: CaptainProfile; unr
         {pending.length ? pending.slice(0, 2).map((b) => <RequestCard key={b.id} b={b} />) : <Card className="text-center text-sm text-muted !py-6">مفيش طلبات جديدة دلوقتي</Card>}
       </section>
 
+      {active.length > 0 && <ShareCard />}
+
       {active.length > 0 && (
         <section>
           <SectionTitle>مشاوير متأكدة</SectionTitle>
@@ -232,8 +237,33 @@ function RequestCard({ b }: { b: Booking }) {
   );
 }
 
+function ShareCard() {
+  const sh = useSharing();
+  return (
+    <button
+      onClick={() => (sh.on ? void stopSharing().then(() => toast('وقّفت مشاركة موقعك', 'info')) : startSharing())}
+      className={cx('w-full text-right rounded-3xl p-4 flex items-center gap-4 border transition', sh.on ? 'border-ok/40 bg-ok/[.07]' : 'glass')}
+    >
+      <span className={cx('relative size-12 rounded-2xl grid place-items-center shrink-0', sh.on ? 'bg-ok/15 text-ok' : 'bg-white/5 text-muted')}>
+        {sh.on && <span className="absolute inset-0 rounded-2xl bg-ok/20 ping-soft" />}
+        <Radio className="size-6 relative" />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-semibold">{sh.on ? 'بتشارك موقعك مع الراكب' : 'ابدأ مشاركة موقعك'}</span>
+        <span className={cx('block text-xs mt-0.5', sh.error ? 'text-danger' : 'text-muted')}>
+          {sh.error ?? (sh.on ? (sh.lastSent ? `آخر تحديث ${timeAgo(sh.lastSent)} — سيب التطبيق مفتوح وإنت سايق` : 'بنحدد مكانك…') : 'الراكب هيشوفك على الخريطة لحد ما توصله')}
+        </span>
+      </span>
+      <span className={cx('h-7 w-12 rounded-full p-1 transition shrink-0', sh.on ? 'bg-ok' : 'bg-white/15')}>
+        <span className={cx('block size-5 rounded-full bg-white transition', sh.on ? '-translate-x-5' : '')} />
+      </span>
+    </button>
+  );
+}
+
 function ActiveRide({ b }: { b: Booking }) {
   const client = useStore((s) => s.users.find((u) => u.id === b.clientId));
+  const me = useStore((s) => s.live.find((l) => l.captainId === b.captainId));
   return (
     <Card className="!p-4">
       <div className="flex items-center justify-between mb-3">
@@ -241,7 +271,31 @@ function ActiveRide({ b }: { b: Booking }) {
         <span className="text-sm font-semibold text-acc">{egp(b.price!)}</span>
       </div>
       <RouteLine from={b.from} to={b.to} compact />
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      {mapsEnabled() && b.fromLat !== undefined && (
+        <MapView
+          className="h-40 mt-3"
+          points={[
+            { id: 'p', kind: 'pickup', lat: b.fromLat, lng: b.fromLng! },
+            ...(b.toLat !== undefined ? [{ id: 'd', kind: 'drop' as const, lat: b.toLat, lng: b.toLng! }] : []),
+            ...(me ? [{ id: 'me', kind: 'captain' as const, lat: me.lat, lng: me.lng, heading: me.heading }] : []),
+          ]}
+        />
+      )}
+      {(b.fromLat !== undefined || b.toLat !== undefined) && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {b.fromLat !== undefined && (
+            <a href={directionsUrl(b.fromLat, b.fromLng!)} target="_blank" rel="noreferrer" className="h-10 rounded-xl bg-white/[.06] border border-line text-xs flex items-center justify-center gap-1.5">
+              <Navigation className="size-4 text-acc" /> الطريق للراكب
+            </a>
+          )}
+          {b.toLat !== undefined && (
+            <a href={directionsUrl(b.toLat, b.toLng!)} target="_blank" rel="noreferrer" className="h-10 rounded-xl bg-white/[.06] border border-line text-xs flex items-center justify-center gap-1.5">
+              <Flag className="size-4 text-acc" /> الطريق للوجهة
+            </a>
+          )}
+        </div>
+      )}
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <a href={`tel:${client?.phone}`} className="h-10 rounded-xl glass text-sm flex items-center justify-center gap-2">
           <Phone className="size-4" /> اتصال
         </a>
@@ -386,7 +440,7 @@ function Me({ user, cap }: { user: User; cap: CaptainProfile }) {
         <div className="rounded-2xl border border-line p-3 text-[11px] text-muted flex gap-2">
           <ShieldAlert className="size-4 shrink-0" /> بياناتك ومستنداتك محفوظة ومش بتظهر للركاب.
         </div>
-        <Button variant="danger" className="w-full" icon={<LogOut className="size-4" />} onClick={logout}>
+        <Button variant="danger" className="w-full" icon={<LogOut className="size-4" />} onClick={() => void stopSharing().finally(logout)}>
           تسجيل الخروج
         </Button>
       </div>

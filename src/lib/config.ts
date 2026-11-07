@@ -6,6 +6,9 @@ export const SUBSCRIPTION_PRICE = 200; // جنيه للسنة
 export const SUBSCRIPTION_DAYS = 365;
 export const SUPPORT_WHATSAPP = '201000000000';
 
+/* ---------- Google Maps (browser key, restrict it to your site's address in Google Cloud) ---------- */
+export const GOOGLE_MAPS_KEY = '';
+
 /* ---------- Supabase (publishable key — safe to ship in the app) ---------- */
 export const SUPABASE_URL = 'https://jazgvrvtqahsrgeyufkn.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_z8O8BcmmYyGj5OWUXxFqOA_-wHV-NTK';

@@ -1,7 +1,7 @@
 import { useRef, useSyncExternalStore } from 'react';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_KEY, SUPABASE_URL } from './config';
-import type { Booking, CaptainProfile, Line, Message, Notice, PaymentLog, State, User } from './types';
+import type { Booking, CaptainProfile, Line, LivePos, Message, Notice, PaymentLog, State, User } from './types';
 
 /**
  * Data layer backed by Supabase.
@@ -19,6 +19,7 @@ const empty = (): State => ({
   bookings: [],
   notices: [],
   payments: [],
+  live: [],
   sessionUserId: null,
   isAdmin: false,
   onboarded: readOnboarded(),
@@ -28,6 +29,7 @@ let state: State = empty();
 const listeners = new Set<() => void>();
 const errorListeners = new Set<(msg: string) => void>();
 let channel: RealtimeChannel | null = null;
+let liveChannel: RealtimeChannel | null = null;
 
 function readOnboarded() {
   try {
@@ -129,7 +131,7 @@ async function loadOnce() {
     return;
   }
 
-  const [profiles, captains, priv, payments, lines, bookings, messages, notices, admin] = await Promise.all([
+  const [profiles, captains, priv, payments, lines, bookings, messages, notices, admin, live] = await Promise.all([
     db.from('profiles').select('*'),
     db.from('captains').select('*'),
     db.from('captain_private').select('*'),
@@ -139,6 +141,7 @@ async function loadOnce() {
     db.from('messages').select('*').order('id').limit(5000),
     db.from('notices').select('*').order('id', { ascending: false }).limit(200),
     db.rpc('is_admin'),
+    db.from('captain_live').select('*'),
   ]);
   const firstErr = [profiles, captains, priv, payments, lines, bookings, messages, notices].find((r) => r.error)?.error;
   if (firstErr) reportError('مشكلة في الاتصال — بنحاول تاني');
@@ -213,6 +216,10 @@ async function loadOnce() {
     createdAt: ms(b.created_at)!,
     messages: msgBy.get(b.id) ?? [],
     rating: b.rating ?? undefined,
+    fromLat: b.from_lat ?? undefined,
+    fromLng: b.from_lng ?? undefined,
+    toLat: b.to_lat ?? undefined,
+    toLng: b.to_lng ?? undefined,
   }));
 
   const nts: Notice[] = (notices.data ?? []).map((n) => ({ id: String(n.id), to: n.to_admin ? 'admin' : n.to_user, text: n.text, at: ms(n.created_at)!, read: n.read }));
@@ -232,7 +239,20 @@ async function loadOnce() {
     bookings: bks,
     notices: nts,
     payments: logs,
+    // table may not exist until 002_live_location.sql is run — then simply no live data
+    live: live.error ? [] : (live.data ?? []).map(mapLive),
   }));
+}
+
+function mapLive(r: Record<string, unknown>): LivePos {
+  return {
+    captainId: r.captain_id as string,
+    lat: r.lat as number,
+    lng: r.lng as number,
+    heading: (r.heading as number | null) ?? undefined,
+    speed: (r.speed as number | null) ?? undefined,
+    at: ms(r.updated_at as string)!,
+  };
 }
 
 function mapLine(l: Record<string, unknown>): Line {
@@ -261,7 +281,22 @@ function listen() {
   for (const table of ['profiles', 'captains', 'payments', 'bookings', 'messages', 'notices', 'lines']) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, soon);
   }
+  // positions change every few seconds — patch them in place instead of reloading everything
   channel.subscribe();
+
+  // positions on their own channel: if that table isn't set up yet, the rest keeps working
+  if (liveChannel) void db.removeChannel(liveChannel);
+  liveChannel = db.channel('felsekka-positions');
+  liveChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'captain_live' }, (p) => {
+    if (p.eventType === 'DELETE') {
+      const id = (p.old as { captain_id?: string }).captain_id;
+      setState((s) => ({ ...s, live: s.live.filter((l) => l.captainId !== id) }));
+    } else {
+      const pos = mapLive(p.new as Record<string, unknown>);
+      setState((s) => ({ ...s, live: [...s.live.filter((l) => l.captainId !== pos.captainId), pos] }));
+    }
+  });
+  liveChannel.subscribe();
 }
 
 /**

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { LayoutDashboard, UserCheck, Bike, Wallet, Users, Route as RouteIcon, Map, Settings as SettingsIcon, LogOut, Lock, ShieldCheck, Menu, Bell, X, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, UserCheck, Bike, Wallet, Users, Route as RouteIcon, Map, Settings as SettingsIcon, LogOut, Lock, ShieldCheck, Menu, Bell, X, ExternalLink, Radio } from 'lucide-react';
 import { Button, Field, Toaster, cx } from '@/components/ui';
 import { Logo } from '@/components/art';
 import { useRoute, go } from '@/lib/router';
@@ -12,6 +12,7 @@ import { Overview } from './Overview';
 import { Applications } from './Applications';
 import { Captains } from './Captains';
 import { Payments, Riders, Rides, Lines, Settings } from './Pages';
+import { LiveMapPage } from './LiveMap';
 
 export default function AdminApp() {
   const signed = useStore((s) => s.isAdmin);
@@ -127,6 +128,7 @@ function Shell({ onOut }: { onOut: () => void }) {
   const pendingApps = useStore((s) => s.captains.filter((c) => c.status === 'pending').length);
   const pendingPays = useStore((s) => s.captains.filter((c) => c.pendingPayment).length);
   const unread = useStore((s) => s.notices.filter((n) => n.to === 'admin' && !n.read).length);
+  const liveCount = useStore((s) => s.live.filter((l) => Date.now() - l.at < 2 * 60_000).length);
 
   useEffect(() => setMenu(false), [section]);
 
@@ -137,6 +139,7 @@ function Shell({ onOut }: { onOut: () => void }) {
     { to: '/payments', label: 'المدفوعات', icon: <Wallet />, badge: pendingPays },
     { to: '/riders', label: 'الركاب', icon: <Users /> },
     { to: '/rides', label: 'المشاوير', icon: <RouteIcon /> },
+    { to: '/live', label: 'الخريطة المباشرة', icon: <Radio />, badge: liveCount },
     { to: '/lines', label: 'الخطوط الثابتة', icon: <Map /> },
     { to: '/settings', label: 'الإعدادات', icon: <SettingsIcon /> },
   ];
@@ -157,6 +160,9 @@ function Shell({ onOut }: { onOut: () => void }) {
       break;
     case 'rides':
       page = <Rides />;
+      break;
+    case 'live':
+      page = <LiveMapPage />;
       break;
     case 'lines':
       page = <Lines />;

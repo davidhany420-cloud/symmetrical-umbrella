@@ -10,7 +10,9 @@ import { BIKE_CLASSES, DAYS, bikeClass } from '@/lib/config';
 import { egp } from '@/lib/format';
 import { createBooking, eligibleCaptains, modeOf, userById } from '@/lib/actions';
 import { toast } from '@/lib/toast';
-import type { BikeClassId, BookingType, User } from '@/lib/types';
+import type { BikeClassId, BookingType, Place, User } from '@/lib/types';
+import { MapView, PlaceField } from '@/components/maps';
+import { mapsEnabled } from '@/lib/maps';
 
 const STEPS = ['المشوار', 'الموتوسيكل', 'الكابتن', 'السعر'];
 
@@ -21,8 +23,8 @@ export function Book({ user }: { user: User }) {
 
   const [step, setStep] = useState(0);
   const [type, setType] = useState<BookingType>(line ? 'monthly' : 'once');
-  const [from, setFrom] = useState(line?.from ?? '');
-  const [to, setTo] = useState(line?.to ?? '');
+  const [from, setFrom] = useState<Place>({ label: line?.from ?? '' });
+  const [to, setTo] = useState<Place>({ label: line?.to ?? '' });
   const [time, setTime] = useState(line?.time ?? '08:00');
   const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [bike, setBike] = useState<BikeClassId>((query.get('bike') as BikeClassId) || 'scooter');
@@ -39,7 +41,7 @@ export function Book({ user }: { user: User }) {
   const captainsVersion = useStore((s) => s.captains);
   const captains = useMemo(() => eligibleCaptains(mode, bike), [mode, bike, captainsVersion]);
 
-  const canNext = [from.trim().length > 1 && to.trim().length > 1 && (type === 'once' || days.length > 0), true, !!captainId, true][step];
+  const canNext = [from.label.trim().length > 1 && to.label.trim().length > 1 && (type === 'once' || days.length > 0), true, !!captainId, true][step];
 
   const [sending, setSending] = useState(false);
   const next = async () => {
@@ -50,7 +52,20 @@ export function Book({ user }: { user: User }) {
       return;
     }
     setSending(true);
-    const id = await createBooking({ captainId: captainId!, type, from: from.trim(), to: to.trim(), time, days: type === 'monthly' ? days : [], bikeClass: bike, offer: price });
+    const id = await createBooking({
+      captainId: captainId!,
+      type,
+      from: from.label.trim(),
+      to: to.label.trim(),
+      time,
+      days: type === 'monthly' ? days : [],
+      bikeClass: bike,
+      offer: price,
+      fromLat: from.lat,
+      fromLng: from.lng,
+      toLat: to.lat,
+      toLng: to.lng,
+    });
     setSending(false);
     if (!id) return;
     toast('اتبعت طلبك للكابتن ⚡');
@@ -78,8 +93,17 @@ export function Book({ user }: { user: User }) {
             {step === 0 && (
               <>
                 <Segmented value={type} onChange={(v) => { setType(v); setOffer(null); }} options={[{ value: 'once', label: 'مشوار واحد' }, { value: 'monthly', label: 'اشتراك شهري' }]} />
-                <Field label="من" icon={<MapPin />} value={from} onChange={(e) => setFrom(e.target.value)} placeholder="نقطة التحرك — الحي / الشارع" />
-                <Field label="إلى" icon={<Flag />} value={to} onChange={(e) => setTo(e.target.value)} placeholder="الوجهة — جامعة، شغل، درس…" />
+                <PlaceField label="من" icon={<MapPin />} value={from} onChange={setFrom} placeholder="مكان الركوب — ابحث أو دوس موقعي" />
+                <PlaceField label="إلى" icon={<Flag />} value={to} onChange={setTo} placeholder="الوجهة — جامعة، شغل، درس…" near={from.lat !== undefined ? { lat: from.lat, lng: from.lng! } : undefined} />
+                {mapsEnabled() && (from.lat !== undefined || to.lat !== undefined) && (
+                  <MapView
+                    className="h-48"
+                    points={[
+                      ...(from.lat !== undefined ? [{ id: 'from', kind: 'pickup' as const, lat: from.lat, lng: from.lng! }] : []),
+                      ...(to.lat !== undefined ? [{ id: 'to', kind: 'drop' as const, lat: to.lat, lng: to.lng! }] : []),
+                    ]}
+                  />
+                )}
                 <Field label={type === 'monthly' ? 'معاد التحرك كل يوم' : 'معاد التحرك'} icon={<Clock3 />} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
                 {type === 'monthly' && (
                   <div className="space-y-1.5">
@@ -166,7 +190,7 @@ export function Book({ user }: { user: User }) {
                   <p className={cx('mt-4 text-xs', price >= base ? 'text-ok' : price >= base * 0.85 ? 'text-warn' : 'text-danger')}>{hint}</p>
                 </div>
                 <div className="glass rounded-3xl p-4 space-y-3">
-                  <RouteLine from={from} to={to} compact />
+                  <RouteLine from={from.label} to={to.label} compact />
                   <div className="h-px bg-line" />
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">الكابتن</span>

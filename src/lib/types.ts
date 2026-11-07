@@ -81,6 +81,26 @@ export interface Booking {
   createdAt: number;
   messages: Message[];
   rating?: number;
+  fromLat?: number;
+  fromLng?: number;
+  toLat?: number;
+  toLng?: number;
+}
+
+/** A captain's last position while they share location */
+export interface LivePos {
+  captainId: string;
+  lat: number;
+  lng: number;
+  heading?: number;
+  speed?: number;
+  at: number;
+}
+
+export interface Place {
+  label: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface Notice {
@@ -110,6 +130,7 @@ export interface State {
   bookings: Booking[];
   notices: Notice[];
   payments: PaymentLog[];
+  live: LivePos[];
   sessionUserId: string | null;
   isAdmin: boolean;
   onboarded: boolean;

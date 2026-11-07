@@ -189,7 +189,11 @@ export function eligibleCaptains(mode: Mode, bike: string) {
 }
 
 export async function createBooking(input: Omit<Booking, 'id' | 'status' | 'createdAt' | 'messages' | 'clientId' | 'mode'>): Promise<string | null> {
-  const { data, error } = await db.rpc('create_booking', {
+  const coords =
+    input.fromLat !== undefined && input.toLat !== undefined
+      ? { p_from_lat: input.fromLat, p_from_lng: input.fromLng, p_to_lat: input.toLat, p_to_lng: input.toLng }
+      : {};
+  const args = {
     p_captain: input.captainId,
     p_type: input.type,
     p_from: input.from,
@@ -198,7 +202,12 @@ export async function createBooking(input: Omit<Booking, 'id' | 'status' | 'crea
     p_days: input.days,
     p_bike_class: input.bikeClass,
     p_offer: input.offer,
-  });
+  };
+  let { data, error } = await db.rpc('create_booking', { ...args, ...coords });
+  // database not updated with the map columns yet (002_live_location.sql) — book without coordinates
+  if (error && Object.keys(coords).length && /PGRST202|function .* does not exist|Could not find the function/i.test(`${error.code} ${error.message}`)) {
+    ({ data, error } = await db.rpc('create_booking', args));
+  }
   if (error) {
     reportError(friendly(error));
     return null;
@@ -212,6 +221,27 @@ export const clientAnswerCounter = (id: string, accept: boolean) => call('client
 export const cancelBooking = (id: string) => call('cancel_booking', { p_booking: id });
 export const completeBooking = (id: string, rating: number) => call('complete_booking', { p_booking: id, p_rating: rating });
 export const sendMessage = (id: string, _from: 'client' | 'captain', text: string) => (text.trim() ? call('send_message', { p_booking: id, p_text: text.trim() }) : Promise.resolve(false));
+
+/* ---------------- live location ---------------- */
+export async function pushLocation(lat: number, lng: number, heading?: number | null, speed?: number | null) {
+  const { error } = await db.rpc('update_location', { p_lat: lat, p_lng: lng, p_heading: heading ?? null, p_speed: speed ?? null });
+  return !error;
+}
+export async function stopLocation() {
+  await db.rpc('stop_location');
+}
+
+/** Distance in km between two points (haversine). */
+export function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** Opens turn-by-turn directions in the Google Maps app / site. */
+export const directionsUrl = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 
 /* ---------------- notices ---------------- */
 export async function markNoticesRead(_to: string) {
