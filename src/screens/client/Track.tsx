@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Phone, MessageCircle, ShieldCheck, Share2, Radio, Navigation } from 'lucide-react';
 import { IconBtn, Page, Avatar, TopBar, Pill } from '@/components/ui';
 import { LiveMap, useLoopProgress } from '@/components/art';
@@ -9,6 +9,7 @@ import { num, timeAgo } from '@/lib/format';
 import { km } from '@/lib/actions';
 import { mapsEnabled } from '@/lib/maps';
 import { toast } from '@/lib/toast';
+import type { LivePos } from '@/lib/types';
 
 const AVG_KMH = 25; // typical motorbike speed in Cairo traffic
 
@@ -21,6 +22,24 @@ function useNow(everyMs = 15000) {
   return now;
 }
 
+/** Current speed in km/h — reported by the captain's phone, or derived from consecutive positions. */
+function useSpeed(live?: LivePos) {
+  const prev = useRef<LivePos | null>(null);
+  const [kmh, setKmh] = useState<number | null>(null);
+  useEffect(() => {
+    if (!live) return;
+    if (live.speed !== undefined && live.speed !== null && live.speed >= 0) {
+      setKmh(live.speed * 3.6);
+    } else if (prev.current && live.at > prev.current.at) {
+      const hours = (live.at - prev.current.at) / 3_600_000;
+      const v = km(prev.current, live) / hours;
+      if (v < 150) setKmh(v); // ignore GPS jumps
+    }
+    prev.current = live;
+  }, [live]);
+  return kmh;
+}
+
 export function Track({ id }: { id: string }) {
   const b = useStore((s) => s.bookings.find((x) => x.id === id));
   const capUser = useStore((s) => s.users.find((u) => u.id === b?.captainId));
@@ -28,6 +47,8 @@ export function Track({ id }: { id: string }) {
   const live = useStore((s) => s.live.find((l) => l.captainId === b?.captainId));
   const now = useNow();
   const sim = useLoopProgress(45);
+  // speed: from the phone when it reports it, otherwise from the last two positions
+  const speedKmh = useSpeed(live);
 
   if (!b || !capUser || !cap) return null;
 
@@ -47,7 +68,7 @@ export function Track({ id }: { id: string }) {
       dist = km(live, drop);
     }
   }
-  const eta = dist !== null ? Math.max(1, Math.round((dist / AVG_KMH) * 60)) : null;
+  const eta = dist !== null ? Math.max(1, Math.round((dist / Math.max(AVG_KMH, speedKmh ?? 0)) * 60)) : null;
 
   const points: MapPoint[] = [
     ...(pickup ? [{ id: 'pickup', kind: 'pickup' as const, ...pickup, title: b.from }] : []),
@@ -117,6 +138,12 @@ export function Track({ id }: { id: string }) {
               <p className="text-xs text-muted">المسافة</p>
               <p className="text-lg font-semibold tabular-nums" dir="ltr">
                 {dist !== null ? `${dist.toFixed(1)} km` : '—'}
+              </p>
+            </div>
+            <div className="text-left">
+              <p className="text-xs text-muted">السرعة</p>
+              <p className="text-lg font-semibold tabular-nums" dir="ltr">
+                {fresh && speedKmh !== null ? `${Math.round(speedKmh)}` : '—'} <span className="text-xs font-normal text-muted">km/h</span>
               </p>
             </div>
           </div>

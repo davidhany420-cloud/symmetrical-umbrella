@@ -158,6 +158,7 @@ export async function submitPayment(userId: string, ref: string, receipt?: strin
 
 /* ---------------- admin actions ---------------- */
 export const reviewCaptain = (userId: string, approve: boolean, reason?: string) => call('admin_review_captain', { p_user: userId, p_approve: approve, p_reason: reason ?? null });
+export const grantSubscription = (userId: string, days: number) => call('admin_grant_subscription', { p_user: userId, p_days: days });
 export const suspendCaptain = (userId: string, suspend: boolean, reason?: string) => call('admin_suspend_captain', { p_user: userId, p_suspend: suspend, p_reason: reason ?? null });
 export async function reviewPayment(userId: string, approve: boolean) {
   const id = captainById(userId)?.pendingPayment?.id;
@@ -239,6 +240,26 @@ export function km(a: { lat: number; lng: number }, b: { lat: number; lng: numbe
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** How far riders can see captains (km). */
+export const NEARBY_KM = 20;
+/** A position older than this is treated as unknown. */
+export const FRESH_MS = 3 * 60_000;
+
+/** Captains that can take this ride, nearest first, with distance to the pickup point. */
+export function nearbyCaptains(mode: Mode, bike: string, pickup?: { lat: number; lng: number }) {
+  const all = eligibleCaptains(mode, bike);
+  if (!pickup) return all.map((c) => ({ c, dist: null as number | null }));
+  const now = Date.now();
+  const live = getState().live;
+  return all
+    .map((c) => {
+      const p = live.find((l) => l.captainId === c.userId && now - l.at < FRESH_MS);
+      return { c, dist: p ? km(p, pickup) : null };
+    })
+    .filter((x): x is { c: CaptainProfile; dist: number } => x.dist !== null && x.dist <= NEARBY_KM)
+    .sort((a, b) => a.dist - b.dist);
 }
 
 /** Opens turn-by-turn directions in the Google Maps app / site. */

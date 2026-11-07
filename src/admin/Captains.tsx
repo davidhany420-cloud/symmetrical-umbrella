@@ -4,7 +4,7 @@ import { Avatar, Button, ConfirmButton, Field, Pill } from '@/components/ui';
 import { useStore } from '@/lib/store';
 import { bikeClass } from '@/lib/config';
 import { dateStr, egp, num } from '@/lib/format';
-import { isSubscribed, suspendCaptain } from '@/lib/actions';
+import { grantSubscription, isSubscribed, suspendCaptain } from '@/lib/actions';
 import { toast } from '@/lib/toast';
 import type { CaptainProfile, User } from '@/lib/types';
 import { Chips, Drawer, Lightbox, PageHead, SearchBox, Table, SERIES } from './kit';
@@ -164,6 +164,7 @@ function CaptainDetail({ c, u, onClose }: { c: CaptainProfile; u: User; onClose:
           ))}
         </div>
       )}
+      {c.status === 'approved' && <GrantCard c={c} u={u} />}
       {c.status === 'suspended' ? (
         <Button
           className="w-full"
@@ -196,6 +197,34 @@ function CaptainDetail({ c, u, onClose }: { c: CaptainProfile; u: User; onClose:
         </div>
       )}
       <Lightbox items={docs.map(([label, src]) => ({ label, src }))} index={lb} onClose={() => setLb(null)} onIndex={setLb} />
+    </div>
+  );
+}
+
+function GrantCard({ c, u }: { c: CaptainProfile; u: User }) {
+  const [busy, setBusy] = useState<number | null>(null);
+  const active = isSubscribed(c);
+  const grant = async (days: number) => {
+    setBusy(days);
+    const ok = await grantSubscription(c.userId, days);
+    setBusy(null);
+    if (ok) toast(`اتفعّل اشتراك ${u.name} ${days} يوم — بقى ظاهر للركاب`);
+  };
+  return (
+    <div className={`rounded-2xl border p-4 space-y-3 ${active ? 'border-line' : 'border-warn/40 bg-warn/[.05]'}`}>
+      <div>
+        <p className="text-sm font-medium">{active ? 'تمديد الاشتراك' : 'فعّل الاشتراك'}</p>
+        <p className="text-xs text-muted mt-1">
+          {active ? `شغّال لحد ${dateStr(c.activeUntil!)}` : 'الكابتن مش ظاهر للركاب لحد ما اشتراكه يتفعّل. فعّله من هنا لو دفع كاش أو كفترة تجربة.'}
+        </p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[7, 30, 365].map((d) => (
+          <Button key={d} size="sm" variant={active ? 'ghost' : 'primary'} loading={busy === d} disabled={busy !== null} onClick={() => void grant(d)}>
+            {d === 365 ? 'سنة' : `${d} يوم`}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

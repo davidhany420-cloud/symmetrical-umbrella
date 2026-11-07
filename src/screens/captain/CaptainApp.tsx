@@ -12,7 +12,7 @@ import { back, go, useRoute } from '@/lib/router';
 import { useStore } from '@/lib/store';
 import { DAYS, INSTAPAY_HANDLE, SUBSCRIPTION_PRICE, bikeClass } from '@/lib/config';
 import { dateStr, egp, num, timeAgo } from '@/lib/format';
-import { captainRespond, directionsUrl, isSubscribed, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
+import { canTakeRides, captainRespond, directionsUrl, isSubscribed, km, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
 import { toast } from '@/lib/toast';
 import type { Booking, CaptainProfile, User } from '@/lib/types';
 
@@ -22,6 +22,13 @@ export function CaptainApp({ user }: { user: User }) {
   const pendingCount = useStore((s) => s.bookings.filter((b) => b.captainId === user.id && b.status === 'pending').length);
   const unread = useUnread(user.id);
   const [, section, id] = parts;
+  const sharing = useSharing();
+  const working = !!cap && cap.online && canTakeRides(cap);
+
+  // while online, the captain's position is shared so nearby riders can find them
+  useEffect(() => {
+    if (working && !sharing.on) startSharing();
+  }, [working, sharing.on]);
 
   if (!cap || cap.status === 'rejected') return <Apply user={user} prev={cap} />;
   if (cap.status === 'pending') return <Pending user={user} />;
@@ -132,9 +139,12 @@ function Dashboard({ user, cap, unread }: { user: User; cap: CaptainProfile; unr
       {/* online switch */}
       <button
         disabled={!canWork}
-        onClick={() => {
-          setOnline(user.id, !cap.online);
-          toast(cap.online ? 'إنت دلوقتي أوفلاين' : 'إنت أونلاين — هتوصلك الطلبات ⚡', 'info');
+        onClick={async () => {
+          const goingOnline = !cap.online;
+          if (goingOnline) startSharing();
+          await setOnline(user.id, goingOnline);
+          if (!goingOnline && !active.length) await stopSharing();
+          toast(goingOnline ? 'إنت أونلاين — الركاب القريبين هيشوفوك ⚡' : 'إنت دلوقتي أوفلاين', 'info');
         }}
         className={cx('w-full relative overflow-hidden rounded-[30px] p-5 flex items-center gap-4 text-right transition', cap.online && canWork ? 'bg-grad text-acc-ink glow' : 'glass', !canWork && 'opacity-60')}
       >
@@ -190,6 +200,7 @@ function RequestCard({ b }: { b: Booking }) {
   const [counterOpen, setCounterOpen] = useState(false);
   const base = b.type === 'monthly' ? bikeClass(b.bikeClass).monthly : bikeClass(b.bikeClass).once;
   const [counter, setCounter] = useState(String(base));
+  const me = useStore((s) => s.live.find((l) => l.captainId === b.captainId));
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-3">
@@ -212,6 +223,7 @@ function RequestCard({ b }: { b: Booking }) {
           {b.time}
           {b.type === 'monthly' && ` · ${b.days.map((d) => DAYS[d]).join('، ')}`}
         </p>
+        <RideMap b={b} me={me} />
         <div className="mt-4 grid grid-cols-3 gap-2">
           <Button size="sm" onClick={() => { captainRespond(b.id, 'accept'); toast('قبلت الطلب ✅'); }} icon={<Check className="size-4" />}>قبول</Button>
           <Button size="sm" variant="soft" onClick={() => setCounterOpen(true)}>سعر تاني</Button>
@@ -237,6 +249,37 @@ function RequestCard({ b }: { b: Booking }) {
   );
 }
 
+/** Where the rider is, where they're going, and how far the captain is from the pickup. */
+function RideMap({ b, me }: { b: Booking; me?: { lat: number; lng: number; heading?: number } }) {
+  if (b.fromLat === undefined && b.toLat === undefined) {
+    return <p className="mt-3 text-[11px] text-muted">الراكب ما حددش مكانه على الخريطة — كلّمه تتأكد من العنوان</p>;
+  }
+  const pickup = b.fromLat !== undefined ? { lat: b.fromLat, lng: b.fromLng! } : null;
+  const dist = pickup && me ? km(me, pickup) : null;
+  return (
+    <>
+      {dist !== null && (
+        <div className="mt-3 flex items-center gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-acc/12 text-acc border border-acc/25">
+            <Navigation className="size-3.5" /> الراكب على بعد {dist < 1 ? `${Math.round(dist * 1000)} متر` : `${dist.toFixed(1)} كم`} منك
+          </span>
+          <span className="text-muted">~{Math.max(1, Math.round((dist / 25) * 60))} دقيقة</span>
+        </div>
+      )}
+      {mapsEnabled() && (
+        <MapView
+          className="h-44 mt-3"
+          points={[
+            ...(pickup ? [{ id: 'p', kind: 'pickup' as const, ...pickup, title: b.from }] : []),
+            ...(b.toLat !== undefined ? [{ id: 'd', kind: 'drop' as const, lat: b.toLat, lng: b.toLng!, title: b.to }] : []),
+            ...(me ? [{ id: 'me', kind: 'captain' as const, lat: me.lat, lng: me.lng, heading: me.heading, title: 'إنت' }] : []),
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
 function ShareCard() {
   const sh = useSharing();
   return (
@@ -249,7 +292,7 @@ function ShareCard() {
         <Radio className="size-6 relative" />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block font-semibold">{sh.on ? 'بتشارك موقعك مع الراكب' : 'ابدأ مشاركة موقعك'}</span>
+        <span className="block font-semibold">{sh.on ? 'موقعك ظاهر للراكب' : 'ابدأ مشاركة موقعك'}</span>
         <span className={cx('block text-xs mt-0.5', sh.error ? 'text-danger' : 'text-muted')}>
           {sh.error ?? (sh.on ? (sh.lastSent ? `آخر تحديث ${timeAgo(sh.lastSent)} — سيب التطبيق مفتوح وإنت سايق` : 'بنحدد مكانك…') : 'الراكب هيشوفك على الخريطة لحد ما توصله')}
         </span>
@@ -271,16 +314,7 @@ function ActiveRide({ b }: { b: Booking }) {
         <span className="text-sm font-semibold text-acc">{egp(b.price!)}</span>
       </div>
       <RouteLine from={b.from} to={b.to} compact />
-      {mapsEnabled() && b.fromLat !== undefined && (
-        <MapView
-          className="h-40 mt-3"
-          points={[
-            { id: 'p', kind: 'pickup', lat: b.fromLat, lng: b.fromLng! },
-            ...(b.toLat !== undefined ? [{ id: 'd', kind: 'drop' as const, lat: b.toLat, lng: b.toLng! }] : []),
-            ...(me ? [{ id: 'me', kind: 'captain' as const, lat: me.lat, lng: me.lng, heading: me.heading }] : []),
-          ]}
-        />
-      )}
+      <RideMap b={b} me={me} />
       {(b.fromLat !== undefined || b.toLat !== undefined) && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {b.fromLat !== undefined && (

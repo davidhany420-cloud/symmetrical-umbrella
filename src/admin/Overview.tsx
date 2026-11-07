@@ -21,6 +21,7 @@ export function Overview() {
   const online = live.filter((c) => c.online);
   const pendingApps = s.captains.filter((c) => c.status === 'pending').sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0));
   const pendingPays = s.captains.filter((c) => c.pendingPayment);
+  const inactive = approved.filter((c) => !isSubscribed(c) && !c.pendingPayment);
   const riders = s.users.filter((u) => u.role === 'client');
   const confirmed = s.bookings.filter((b) => b.status === 'accepted' || b.status === 'done');
 
@@ -50,8 +51,8 @@ export function Overview() {
       />
 
       {/* attention strip */}
-      {(pendingApps.length > 0 || pendingPays.length > 0) && (
-        <div className="mb-6 grid sm:grid-cols-2 gap-3">
+      {(pendingApps.length > 0 || pendingPays.length > 0 || inactive.length > 0) && (
+        <div className="mb-6 grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {pendingApps.length > 0 && (
             <button onClick={() => go('/applications')} className="group flex items-center gap-4 p-4 rounded-2xl border border-warn/25 bg-warn/[.06] text-right hover:bg-warn/10 transition">
               <span className="size-11 rounded-xl bg-warn/15 text-warn grid place-items-center">
@@ -62,6 +63,18 @@ export function Overview() {
                 <span className="block text-xs text-muted mt-0.5">أقدم طلب {timeAgo(pendingApps[0].submittedAt ?? now)}</span>
               </span>
               <ArrowLeft className="size-5 text-warn group-hover:-translate-x-1 transition" />
+            </button>
+          )}
+          {inactive.length > 0 && (
+            <button onClick={() => go('/captains')} className="group flex items-center gap-4 p-4 rounded-2xl border border-line bg-white/[.03] text-right hover:bg-white/[.06] transition">
+              <span className="size-11 rounded-xl bg-white/5 text-muted grid place-items-center">
+                <Bike className="size-5" />
+              </span>
+              <span className="flex-1">
+                <span className="block font-semibold">{num(inactive.length)} كابتن مقبول بس مش ظاهر للركاب</span>
+                <span className="block text-xs text-muted mt-0.5">اشتراكهم مش متفعّل — فعّله من صفحة الكباتن</span>
+              </span>
+              <ArrowLeft className="size-5 text-muted group-hover:-translate-x-1 transition" />
             </button>
           )}
           {pendingPays.length > 0 && (

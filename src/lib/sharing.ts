@@ -3,7 +3,7 @@ import { pushLocation, stopLocation } from './actions';
 
 /**
  * The captain's location sharing. Lives outside React so it keeps running while
- * the captain moves between screens. Positions are sent at most every 5 seconds.
+ * the captain moves between screens. Positions are sent at most every 8 seconds.
  */
 type Status = { on: boolean; error: string | null; lastSent: number | null };
 let status: Status = { on: false, error: null, lastSent: null };
@@ -26,7 +26,7 @@ async function send(p: GeolocationPosition) {
 }
 
 function onPosition(p: GeolocationPosition) {
-  const wait = 5000 - (Date.now() - lastPush);
+  const wait = 8000 - (Date.now() - lastPush);
   if (wait <= 0) return void send(p);
   pending = p;
   if (!timer)

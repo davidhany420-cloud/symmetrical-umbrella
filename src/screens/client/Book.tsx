@@ -8,7 +8,7 @@ import { back, go, useRoute } from '@/lib/router';
 import { getState, useStore } from '@/lib/store';
 import { BIKE_CLASSES, DAYS, bikeClass } from '@/lib/config';
 import { egp } from '@/lib/format';
-import { createBooking, eligibleCaptains, modeOf, userById } from '@/lib/actions';
+import { NEARBY_KM, createBooking, modeOf, nearbyCaptains, userById } from '@/lib/actions';
 import { toast } from '@/lib/toast';
 import type { BikeClassId, BookingType, Place, User } from '@/lib/types';
 import { MapView, PlaceField } from '@/components/maps';
@@ -37,11 +37,13 @@ export function Book({ user }: { user: User }) {
   const min = Math.round((base * 0.6) / stepSize) * stepSize;
   const max = Math.round((base * 1.4) / stepSize) * stepSize;
 
-  // re-evaluated whenever captains change
+  // nearest available captains to the pickup point; re-evaluated whenever captains or positions change
   const captainsVersion = useStore((s) => s.captains);
-  const captains = useMemo(() => eligibleCaptains(mode, bike), [mode, bike, captainsVersion]);
+  const liveVersion = useStore((s) => s.live);
+  const pickup = from.lat !== undefined ? { lat: from.lat, lng: from.lng! } : undefined;
+  const captains = useMemo(() => nearbyCaptains(mode, bike, pickup), [mode, bike, captainsVersion, liveVersion, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canNext = [from.label.trim().length > 1 && to.label.trim().length > 1 && (type === 'once' || days.length > 0), true, !!captainId, true][step];
+  const canNext = [from.lat !== undefined && to.label.trim().length > 1 && (type === 'once' || days.length > 0), true, !!captainId, true][step];
 
   const [sending, setSending] = useState(false);
   const next = async () => {
@@ -94,6 +96,9 @@ export function Book({ user }: { user: User }) {
               <>
                 <Segmented value={type} onChange={(v) => { setType(v); setOffer(null); }} options={[{ value: 'once', label: 'مشوار واحد' }, { value: 'monthly', label: 'اشتراك شهري' }]} />
                 <PlaceField label="من" icon={<MapPin />} value={from} onChange={setFrom} placeholder="مكان الركوب — ابحث أو دوس موقعي" />
+                {from.label.trim().length > 1 && from.lat === undefined && (
+                  <p className="text-[11px] text-warn px-1 -mt-2">اختار مكان الركوب من الاقتراحات أو دوس "موقعي" — علشان نوريك أقرب كابتن</p>
+                )}
                 <PlaceField label="إلى" icon={<Flag />} value={to} onChange={setTo} placeholder="الوجهة — جامعة، شغل، درس…" near={from.lat !== undefined ? { lat: from.lat, lng: from.lng! } : undefined} />
                 {mapsEnabled() && (from.lat !== undefined || to.lat !== undefined) && (
                   <MapView
@@ -123,7 +128,7 @@ export function Book({ user }: { user: User }) {
 
             {step === 1 &&
               BIKE_CLASSES.map((b) => {
-                const n = eligibleCaptains(mode, b.id).length;
+                const n = nearbyCaptains(mode, b.id, pickup).length;
                 return (
                   <button key={b.id} onClick={() => { setBike(b.id); setOffer(null); }} className={cx('w-full text-right glass rounded-3xl p-4 flex items-center gap-4 transition', bike === b.id && 'border-acc! bg-acc/8')}>
                     <BikeArt kind={b.id} className="w-28 h-16 shrink-0" />
@@ -133,7 +138,7 @@ export function Book({ user }: { user: User }) {
                         {bike === b.id && <Check className="size-4 text-acc" />}
                       </div>
                       <p className="text-xs text-muted mt-0.5">{b.tagline}</p>
-                      <p className="text-[11px] text-muted mt-1.5">{n ? `${n} كابتن متاح` : 'مفيش كباتن متاحين دلوقتي'}</p>
+                      <p className="text-[11px] text-muted mt-1.5">{n ? `${n} كابتن ${pickup ? 'قريب منك' : 'متاح'}` : pickup ? 'مفيش كباتن قريبين دلوقتي' : 'مفيش كباتن متاحين دلوقتي'}</p>
                     </div>
                     <div className="text-left">
                       <div className="font-semibold">{egp(type === 'monthly' ? b.monthly : b.once)}</div>
@@ -146,8 +151,10 @@ export function Book({ user }: { user: User }) {
             {step === 2 &&
               (captains.length ? (
                 <>
-                  <p className="text-xs text-muted px-1">{mode === 'girls' ? 'كابتنات بنات موثّقات — اختاري واحدة' : 'كباتن موثّقين — اختار واحد'}</p>
-                  {captains.map((c) => {
+                  <p className="text-xs text-muted px-1">
+                    {pickup ? `الأقرب ليك الأول — في حدود ${NEARBY_KM} كم` : mode === 'girls' ? 'كابتنات بنات موثّقات — اختاري واحدة' : 'كباتن موثّقين — اختار واحد'}
+                  </p>
+                  {captains.map(({ c, dist }) => {
                     const u = userById(c.userId)!;
                     return (
                       <CaptainRow
@@ -156,13 +163,27 @@ export function Book({ user }: { user: User }) {
                         cap={c}
                         selected={captainId === c.userId}
                         onClick={() => setCaptainId(c.userId)}
-                        right={<span className={cx('size-6 rounded-full border-2 grid place-items-center', captainId === c.userId ? 'border-acc bg-acc text-acc-ink' : 'border-white/20')}>{captainId === c.userId && <Check className="size-3.5" />}</span>}
+                        right={
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className={cx('size-6 rounded-full border-2 grid place-items-center', captainId === c.userId ? 'border-acc bg-acc text-acc-ink' : 'border-white/20')}>{captainId === c.userId && <Check className="size-3.5" />}</span>
+                            {dist !== null && (
+                              <span className="text-[11px] text-acc whitespace-nowrap tabular-nums">
+                                {dist < 1 ? `${Math.round(dist * 1000)} م` : `${dist.toFixed(1)} كم`} · {Math.max(1, Math.round((dist / 25) * 60))} د
+                              </span>
+                            )}
+                          </div>
+                        }
                       />
                     );
                   })}
                 </>
               ) : (
-                <Empty icon={<UserX />} title="مفيش كباتن متاحين للفئة دي" sub="جرّب فئة موتوسيكل تانية" action={<Button variant="soft" size="sm" onClick={() => setStep(1)}>غيّر الفئة</Button>} />
+                <Empty
+                  icon={<UserX />}
+                  title={pickup ? 'مفيش كباتن قريبين منك دلوقتي' : 'مفيش كباتن متاحين للفئة دي'}
+                  sub={pickup ? `مفيش كابتن أونلاين في حدود ${NEARBY_KM} كم من مكان الركوب — جرّب فئة تانية أو حاول كمان شوية` : 'جرّب فئة موتوسيكل تانية'}
+                  action={<Button variant="soft" size="sm" onClick={() => setStep(1)}>غيّر الفئة</Button>}
+                />
               ))}
 
             {step === 3 && (
