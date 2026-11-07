@@ -346,8 +346,8 @@ export function Settings() {
       setCur('');
       setNext('');
       toast('اتغيرت كلمة السر');
-    } catch {
-      toast('كلمة السر الحالية غلط', 'err');
+    } catch (e) {
+      toast((e as Error).message === 'كلمة السر غلط' ? 'كلمة السر الحالية غلط — انسخها والصقها بدل ما تكتبها' : (e as Error).message, 'err');
     } finally {
       setBusy(false);
     }

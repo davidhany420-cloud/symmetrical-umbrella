@@ -15,6 +15,8 @@ const ERRORS: [RegExp, string][] = [
   [/invalid login credentials/i, 'رقم الموبايل أو كلمة السر مش صح'],
   [/captain not available/i, 'الكابتن ده مش متاح دلوقتي — اختار كابتن تاني'],
   [/payments_one_pending|duplicate key.*payments/i, 'عندك دفعة لسه بتتراجع'],
+  [/same_password|different from the old/i, 'كلمة السر الجديدة لازم تبقى مختلفة عن القديمة'],
+  [/weak_password|at least \d+ characters|password should/i, 'كلمة السر الجديدة ضعيفة — خليها 8 حروف أو أكتر'],
   [/rate limit/i, 'محاولات كتير ورا بعض — استنى دقيقة وجرّب تاني'],
   [/failed to fetch|network/i, 'مفيش اتصال بالإنترنت'],
   [/admin only/i, 'العملية دي للأدمن بس'],
