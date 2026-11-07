@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* ---------- Design tokens ---------- */
+:root {
+  color-scheme: dark;
+  --bg: #05060a;
+  --surface: rgba(255, 255, 255, 0.045);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.09);
+  --text: #f2f4fa;
+  --muted: #8b90a5;
+  --acc: #3df5ff;      /* boys: electric cyan */
+  --acc-2: #7c5cff;    /* violet */
+  --acc-ink: #031317;  /* text on accent */
+}
+[data-mode='girls'] {
+  --acc: #ff5ad9;      /* girls: neon magenta */
+  --acc-2: #a35cff;
+  --acc-ink: #1d0418;
+}
+
+@theme inline {
+  --font-sans: 'Readex Pro', system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-acc: var(--acc);
+  --color-acc-2: var(--acc-2);
+  --color-acc-ink: var(--acc-ink);
+  --color-lime: #c8ff3d;
+  --color-danger: #ff5c7a;
+  --color-ok: #3dffa8;
+  --color-warn: #ffc83d;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Readex Pro', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+::selection { background: var(--acc); color: var(--acc-ink); }
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
+/* ---------- Reusable surfaces ---------- */
+@utility glass {
+  background: linear-gradient(160deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025));
+  border: 1px solid var(--line);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+@utility text-grad {
+  background: linear-gradient(100deg, var(--acc), var(--acc-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility bg-grad {
+  background: linear-gradient(120deg, var(--acc), var(--acc-2));
+}
+@utility glow {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--acc) 40%, transparent),
+    0 10px 40px -10px color-mix(in oklab, var(--acc) 60%, transparent);
+}
+@utility grid-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* aurora blobs behind the app */
+.aurora::before, .aurora::after {
+  content: '';
+  position: absolute;
+  width: 420px; height: 420px;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.35;
+  pointer-events: none;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.aurora::before { background: var(--acc); top: -160px; right: -140px; }
+.aurora::after { background: var(--acc-2); bottom: -200px; left: -160px; animation-delay: -9s; }
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-40px, 60px) scale(1.15); }
+}
+
+@keyframes dash { to { stroke-dashoffset: -40; } }
+.route-dash { stroke-dasharray: 8 12; animation: dash 1.2s linear infinite; }
+
+@keyframes ping-soft {
+  0% { transform: scale(1); opacity: .7; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.ping-soft { animation: ping-soft 1.8s cubic-bezier(0,0,.2,1) infinite; }
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+input, textarea, select { font: inherit; }
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
