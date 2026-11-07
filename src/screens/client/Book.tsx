@@ -1,20 +1,20 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { MapPin, Flag, Clock3, Minus, Plus, Check, UserX, Send } from 'lucide-react';
+import { MapPin, Flag, Clock3, Minus, Plus, Check, UserX, Send, Zap } from 'lucide-react';
 import { Button, Field, Page, Segmented, TopBar, Empty, Pill, cx } from '@/components/ui';
-import { BikeArt } from '@/components/art';
+import { MotoArt } from '@/components/art';
 import { CaptainRow, RouteLine } from '@/components/shared';
 import { back, go, useRoute } from '@/lib/router';
 import { getState, useStore } from '@/lib/store';
-import { BIKE_CLASSES, DAYS, bikeClass } from '@/lib/config';
+import { DAYS, MOTO } from '@/lib/config';
 import { egp } from '@/lib/format';
 import { NEARBY_KM, createBooking, modeOf, nearbyCaptains, userById } from '@/lib/actions';
 import { toast } from '@/lib/toast';
-import type { BikeClassId, BookingType, Place, User } from '@/lib/types';
+import type { BookingType, Place, User } from '@/lib/types';
 import { MapView, PlaceField } from '@/components/maps';
 import { mapsEnabled } from '@/lib/maps';
 
-const STEPS = ['المشوار', 'الموتوسيكل', 'الكابتن', 'السعر'];
+const STEPS = ['المشوار', 'الكابتن', 'السعر'];
 
 export function Book({ user }: { user: User }) {
   const { query } = useRoute();
@@ -27,10 +27,9 @@ export function Book({ user }: { user: User }) {
   const [to, setTo] = useState<Place>({ label: line?.to ?? '' });
   const [time, setTime] = useState(line?.time ?? '08:00');
   const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4]);
-  const [bike, setBike] = useState<BikeClassId>((query.get('bike') as BikeClassId) || 'scooter');
   const [captainId, setCaptainId] = useState<string | null>(null);
 
-  const base = line && type === 'monthly' ? line.price : type === 'monthly' ? bikeClass(bike).monthly : bikeClass(bike).once;
+  const base = line && type === 'monthly' ? line.price : type === 'monthly' ? MOTO.monthly : MOTO.once;
   const stepSize = type === 'monthly' ? 50 : 5;
   const [offer, setOffer] = useState<number | null>(null);
   const price = offer ?? base;
@@ -41,15 +40,15 @@ export function Book({ user }: { user: User }) {
   const captainsVersion = useStore((s) => s.captains);
   const liveVersion = useStore((s) => s.live);
   const pickup = from.lat !== undefined ? { lat: from.lat, lng: from.lng! } : undefined;
-  const captains = useMemo(() => nearbyCaptains(mode, bike, pickup), [mode, bike, captainsVersion, liveVersion, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  const captains = useMemo(() => nearbyCaptains(mode, pickup), [mode, captainsVersion, liveVersion, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canNext = [from.lat !== undefined && to.label.trim().length > 1 && (type === 'once' || days.length > 0), true, !!captainId, true][step];
+  const canNext = [from.lat !== undefined && to.label.trim().length > 1 && (type === 'once' || days.length > 0), !!captainId, true][step];
 
   const [sending, setSending] = useState(false);
   const next = async () => {
-    if (step < 3) {
-      if (step === 1) setCaptainId(null);
-      if (step === 2) setOffer(null);
+    if (step < 2) {
+      if (step === 0) setCaptainId(null);
+      if (step === 1) setOffer(null);
       setStep(step + 1);
       return;
     }
@@ -61,7 +60,7 @@ export function Book({ user }: { user: User }) {
       to: to.label.trim(),
       time,
       days: type === 'monthly' ? days : [],
-      bikeClass: bike,
+      bikeClass: captains.find((x) => x.c.userId === captainId)?.c.bikeClass ?? MOTO.id,
       offer: price,
       fromLat: from.lat,
       fromLng: from.lng,
@@ -78,7 +77,7 @@ export function Book({ user }: { user: User }) {
 
   return (
     <Page className="flex flex-col min-h-dvh md:min-h-[calc(100dvh-48px)]">
-      <TopBar title={type === 'monthly' ? 'اشتراك شهري' : 'مشوار جديد'} sub={`خطوة ${step + 1} من 4 · ${STEPS[step]}`} onBack={() => (step ? setStep(step - 1) : back('/home'))} />
+      <TopBar title={type === 'monthly' ? 'اشتراك شهري' : 'مشوار جديد'} sub={`خطوة ${step + 1} من ${STEPS.length} · ${STEPS[step]}`} onBack={() => (step ? setStep(step - 1) : back('/home'))} />
       <div className="px-5">
         <div className="flex gap-1.5">
           {STEPS.map((s, i) => (
@@ -94,6 +93,19 @@ export function Book({ user }: { user: User }) {
           <motion.div key={step} initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.22 }} className="space-y-4">
             {step === 0 && (
               <>
+                <div className="relative overflow-hidden rounded-3xl glass p-4 flex items-center gap-3">
+                  <div className="absolute -left-10 top-1/2 -translate-y-1/2 size-40 rounded-full bg-acc/15 blur-2xl" />
+                  <div className="relative flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-lg">{MOTO.name}</span>
+                      <span className="text-[9px] tracking-[0.3em] text-muted" dir="ltr">{MOTO.en}</span>
+                    </div>
+                    <p className="text-xs text-acc mt-1 flex items-center gap-1">
+                      <Zap className="size-3.5" /> {MOTO.tagline}
+                    </p>
+                  </div>
+                  <MotoArt className="relative w-36 h-auto shrink-0 -my-2" />
+                </div>
                 <Segmented value={type} onChange={(v) => { setType(v); setOffer(null); }} options={[{ value: 'once', label: 'مشوار واحد' }, { value: 'monthly', label: 'اشتراك شهري' }]} />
                 <PlaceField label="من" icon={<MapPin />} value={from} onChange={setFrom} placeholder="مكان الركوب — ابحث أو دوس موقعي" />
                 {from.label.trim().length > 1 && from.lat === undefined && (
@@ -126,29 +138,8 @@ export function Book({ user }: { user: User }) {
               </>
             )}
 
-            {step === 1 &&
-              BIKE_CLASSES.map((b) => {
-                const n = nearbyCaptains(mode, b.id, pickup).length;
-                return (
-                  <button key={b.id} onClick={() => { setBike(b.id); setOffer(null); }} className={cx('w-full text-right glass rounded-3xl p-4 flex items-center gap-4 transition', bike === b.id && 'border-acc! bg-acc/8')}>
-                    <BikeArt kind={b.id} className="w-28 h-16 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{b.name}</span>
-                        {bike === b.id && <Check className="size-4 text-acc" />}
-                      </div>
-                      <p className="text-xs text-muted mt-0.5">{b.tagline}</p>
-                      <p className="text-[11px] text-muted mt-1.5">{n ? `${n} كابتن ${pickup ? 'قريب منك' : 'متاح'}` : pickup ? 'مفيش كباتن قريبين دلوقتي' : 'مفيش كباتن متاحين دلوقتي'}</p>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-semibold">{egp(type === 'monthly' ? b.monthly : b.once)}</div>
-                      <div className="text-[10px] text-muted">{type === 'monthly' ? '/شهر' : '/مشوار'}</div>
-                    </div>
-                  </button>
-                );
-              })}
 
-            {step === 2 &&
+            {step === 1 &&
               (captains.length ? (
                 <>
                   <p className="text-xs text-muted px-1">
@@ -180,13 +171,13 @@ export function Book({ user }: { user: User }) {
               ) : (
                 <Empty
                   icon={<UserX />}
-                  title={pickup ? 'مفيش كباتن قريبين منك دلوقتي' : 'مفيش كباتن متاحين للفئة دي'}
-                  sub={pickup ? `مفيش كابتن أونلاين في حدود ${NEARBY_KM} كم من مكان الركوب — جرّب فئة تانية أو حاول كمان شوية` : 'جرّب فئة موتوسيكل تانية'}
-                  action={<Button variant="soft" size="sm" onClick={() => setStep(1)}>غيّر الفئة</Button>}
+                  title={pickup ? 'مفيش كباتن قريبين منك دلوقتي' : 'مفيش كباتن متاحين دلوقتي'}
+                  sub={pickup ? `مفيش كابتن أونلاين في حدود ${NEARBY_KM} كم من مكان الركوب — جرّب كمان شوية` : 'جرّب كمان شوية'}
+                  action={<Button variant="soft" size="sm" onClick={() => setStep(0)}>رجوع</Button>}
                 />
               ))}
 
-            {step === 3 && (
+            {step === 2 && (
               <>
                 <div className="glass rounded-3xl p-5 text-center">
                   <p className="text-xs text-muted">عرضك {type === 'monthly' ? 'للشهر' : 'للمشوار'}</p>
@@ -219,7 +210,7 @@ export function Book({ user }: { user: User }) {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">الموتوسيكل</span>
-                    <span>{bikeClass(bike).name}</span>
+                    <span>{MOTO.name}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">المعاد</span>
@@ -236,8 +227,8 @@ export function Book({ user }: { user: User }) {
       </div>
 
       <div className="sticky bottom-0 px-5 pt-3 pb-[max(env(safe-area-inset-bottom),18px)] bg-gradient-to-t from-bg via-bg to-transparent">
-        <Button size="lg" className="w-full" disabled={!canNext} loading={sending} onClick={next} icon={step === 3 ? <Send className="size-5 -scale-x-100" /> : undefined}>
-          {step === 3 ? `ابعت العرض · ${egp(price)}` : 'التالي'}
+        <Button size="lg" className="w-full" disabled={!canNext} loading={sending} onClick={next} icon={step === 2 ? <Send className="size-5 -scale-x-100" /> : undefined}>
+          {step === 2 ? `ابعت العرض · ${egp(price)}` : 'التالي'}
         </Button>
       </div>
     </Page>

@@ -33,13 +33,17 @@ export interface BikeClass {
   perks: string[];
 }
 
-export const BIKE_CLASSES: BikeClass[] = [
-  { id: 'scooter', name: 'سكوتر', en: 'SCOOTER', tagline: 'خفيف وسريع في الزحمة', monthly: 900, once: 35, perks: ['خوذة', 'مثالي للمسافات القصيرة'] },
-  { id: 'electric', name: 'كهربا', en: 'E-BIKE', tagline: 'هادي وصديق للبيئة', monthly: 1100, once: 40, perks: ['صفر عادم', 'خوذة', 'شاحن موبايل'] },
-  { id: 'classic', name: 'كلاسيك', en: 'CLASSIC', tagline: 'مريح للمشاوير الطويلة', monthly: 1300, once: 50, perks: ['مقعد واسع', 'خوذة', 'صندوق شنطة'] },
-  { id: 'sport', name: 'سبورت', en: 'SPORT', tagline: 'أسرع وصول للمعاد', monthly: 1600, once: 65, perks: ['كابتن خبرة +3 سنين', 'خوذة بريميوم', 'جاكت حماية'] },
-];
-
-export const bikeClass = (id: BikeClassId) => BIKE_CLASSES.find((b) => b.id === id)!;
+/** The one vehicle the app offers. (Older records may still carry other class ids — they all map here.) */
+export const MOTO: BikeClass = {
+  id: 'scooter',
+  name: 'موتوسيكل',
+  en: 'MOTO',
+  tagline: 'الأسهل · الأقوى · الأسرع',
+  monthly: 1100,
+  once: 40,
+  perks: ['خوذة مع كل مشوار', 'كابتن موثّق', 'أسرع من الزحمة'],
+};
+export const BIKE_CLASSES: BikeClass[] = [MOTO];
+export const bikeClass = (_id?: BikeClassId) => MOTO;
 
 export const DAYS = ['أحد', 'اتنين', 'تلات', 'أربع', 'خميس', 'جمعة', 'سبت'];

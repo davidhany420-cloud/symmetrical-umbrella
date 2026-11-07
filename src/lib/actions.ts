@@ -184,10 +184,10 @@ export async function deleteLine(id: string) {
 }
 
 /* ---------------- bookings ---------------- */
-export function eligibleCaptains(mode: Mode, bike: string) {
+export function eligibleCaptains(mode: Mode) {
   const wanted: Gender = mode === 'girls' ? 'female' : 'male';
   return getState()
-    .captains.filter((c) => c.bikeClass === bike && canTakeRides(c) && userById(c.userId)?.gender === wanted)
+    .captains.filter((c) => canTakeRides(c) && userById(c.userId)?.gender === wanted)
     .sort((a, b) => Number(b.online) - Number(a.online) || b.rating - a.rating);
 }
 
@@ -250,8 +250,8 @@ export const NEARBY_KM = 20;
 export const FRESH_MS = 3 * 60_000;
 
 /** Captains that can take this ride, nearest first, with distance to the pickup point. */
-export function nearbyCaptains(mode: Mode, bike: string, pickup?: { lat: number; lng: number }) {
-  const all = eligibleCaptains(mode, bike);
+export function nearbyCaptains(mode: Mode, pickup?: { lat: number; lng: number }) {
+  const all = eligibleCaptains(mode);
   if (!pickup) return all.map((c) => ({ c, dist: null as number | null }));
   const now = Date.now();
   const live = getState().live;

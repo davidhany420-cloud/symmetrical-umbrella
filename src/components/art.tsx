@@ -32,81 +32,115 @@ export function Wordmark() {
   );
 }
 
-/* ---------- Motorcycle line art ---------- */
-const BIKES: Record<BikeClassId, { r: number; body: string[] }> = {
-  scooter: {
-    r: 17,
-    body: [
-      'M48 82 C58 82 64 70 78 68 L118 68 C128 68 132 60 128 50 L124 40',
-      'M86 68 L94 54 L120 54',
-      'M124 40 L140 30 L150 30',
-      'M128 50 L156 82',
-      'M40 66 C50 56 64 56 74 60',
-    ],
-  },
-  electric: {
-    r: 18,
-    body: [
-      'M46 82 C56 80 62 68 76 66 L120 66 C130 66 134 58 130 48 L126 38',
-      'M84 66 L92 52 L118 52',
-      'M126 38 L142 28 L152 28',
-      'M130 48 L156 82',
-      'M98 60 L92 70 L100 70 L94 80',
-    ],
-  },
-  classic: {
-    r: 22,
-    body: [
-      'M44 82 L74 58 L118 56 L156 82',
-      'M70 50 C78 40 104 40 112 50 L118 56',
-      'M60 52 L92 50',
-      'M118 56 L130 32 L146 28',
-      'M84 66 C90 76 104 76 110 66',
-    ],
-  },
-  sport: {
-    r: 22,
-    body: [
-      'M44 82 L66 58 L96 56',
-      'M64 52 L84 46 L100 50',
-      'M96 56 L118 42 C132 34 150 38 160 52 L156 82',
-      'M118 42 L134 30',
-      'M84 66 C92 78 110 78 118 64',
-      'M146 50 L162 50',
-    ],
-  },
-};
-
-export function BikeArt({ kind, className }: { kind: BikeClassId; className?: string }) {
-  const id = useId();
-  const b = BIKES[kind];
+/* ---------- Motorcycle illustration ---------- */
+/**
+ * The app's one vehicle: a modern naked bike in neon line art.
+ * Drawn facing right, mirrored so it rides toward the reading direction (RTL).
+ */
+export function MotoArt({ className, beam = true }: { className?: string; beam?: boolean }) {
+  const id = useId().replace(/:/g, '');
+  const neon = `url(#n${id})`;
+  const Wheel = ({ cx }: { cx: number }) => (
+    <g>
+      <circle cx={cx} cy={136} r={35} fill="#0a0d15" stroke="#1a1f2e" strokeWidth="8" />
+      <circle cx={cx} cy={136} r={35} fill="none" stroke={neon} strokeWidth="2.5" filter={`url(#g${id})`} />
+      <circle cx={cx} cy={136} r={24} fill="none" stroke="var(--acc)" strokeOpacity=".55" strokeWidth="1.5" />
+      {[0, 60, 120].map((r) => (
+        <line key={r} x1={cx - 22} y1={136} x2={cx + 22} y2={136} stroke="var(--acc)" strokeOpacity=".35" strokeWidth="2" transform={`rotate(${r} ${cx} 136)`} />
+      ))}
+      <circle cx={cx} cy={136} r={11} fill="none" stroke="var(--acc-2)" strokeWidth="2" />
+      <circle cx={cx} cy={136} r={3.5} fill="var(--acc)" />
+    </g>
+  );
   return (
-    <svg viewBox="0 0 200 110" className={className} style={{ transform: 'scaleX(-1)' }} aria-hidden>
+    <svg viewBox="0 0 330 190" className={className} style={{ transform: 'scaleX(-1)' }} aria-hidden>
       <defs>
-        <linearGradient id={`g${id}`} x1="0" x2="1">
+        <linearGradient id={`n${id}`} x1="0" x2="1">
           <stop offset="0" stopColor="var(--acc-2)" />
           <stop offset="1" stopColor="var(--acc)" />
         </linearGradient>
-        <filter id={`f${id}`} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2.4" result="b" />
+        <linearGradient id={`b${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="var(--acc-2)" stopOpacity=".95" />
+          <stop offset="1" stopColor="var(--acc)" stopOpacity=".95" />
+        </linearGradient>
+        <linearGradient id={`d${id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#1c2232" />
+          <stop offset="1" stopColor="#0c0f17" />
+        </linearGradient>
+        <linearGradient id={`l${id}`} x1="0" x2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity=".55" />
+          <stop offset="1" stopColor="var(--acc)" stopOpacity="0" />
+        </linearGradient>
+        <filter id={`g${id}`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="3" result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
       </defs>
-      <ellipse cx="100" cy="102" rx="74" ry="4" fill="var(--acc)" opacity=".18" />
-      <g fill="none" stroke={`url(#g${id})`} strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" filter={`url(#f${id})`}>
-        <circle cx="44" cy="82" r={b.r} />
-        <circle cx="156" cy="82" r={b.r} />
-        <circle cx="44" cy="82" r="3" />
-        <circle cx="156" cy="82" r="3" />
-        {b.body.map((d) => (
-          <path key={d} d={d} />
-        ))}
+
+      {/* ground glow + speed lines */}
+      <ellipse cx="165" cy="176" rx="130" ry="7" fill="var(--acc)" opacity=".16" />
+      <g stroke={neon} strokeLinecap="round" opacity=".55">
+        <line x1="4" y1="96" x2="46" y2="96" strokeWidth="2.5" />
+        <line x1="14" y1="112" x2="40" y2="112" strokeWidth="2" />
+        <line x1="0" y1="128" x2="30" y2="128" strokeWidth="1.5" />
       </g>
+
+      {/* headlight beam */}
+      {beam && <path d="M252 78 L330 56 L330 112 L252 90 Z" fill={`url(#l${id})`} opacity=".45" />}
+
+      <Wheel cx={80} />
+      <Wheel cx={252} />
+
+      {/* swingarm + exhaust */}
+      <path d="M80 136 L150 120" stroke="#1a1f2e" strokeWidth="9" strokeLinecap="round" />
+      <path d="M80 136 L150 120" stroke={neon} strokeWidth="2" strokeLinecap="round" />
+      <path d="M142 128 C162 144 196 146 222 134" fill="none" stroke="#1a1f2e" strokeWidth="8" strokeLinecap="round" />
+      <path d="M200 140 L224 132" stroke="var(--acc)" strokeWidth="3" strokeLinecap="round" filter={`url(#g${id})`} />
+
+      {/* engine */}
+      <path d="M132 98 L182 98 L194 126 L140 130 Z" fill={`url(#d${id})`} stroke="#2a3145" strokeWidth="1.5" />
+      <g stroke="var(--acc)" strokeOpacity=".4" strokeWidth="1.5">
+        <line x1="146" y1="106" x2="180" y2="106" />
+        <line x1="146" y1="113" x2="184" y2="113" />
+        <line x1="146" y1="120" x2="188" y2="120" />
+      </g>
+
+      {/* front fork + fender */}
+      <path d="M252 136 L226 70" stroke="#1a1f2e" strokeWidth="8" strokeLinecap="round" />
+      <path d="M252 136 L226 70" stroke={neon} strokeWidth="2" strokeLinecap="round" />
+      <path d="M226 110 C236 98 266 98 276 110" fill="none" stroke={neon} strokeWidth="3" strokeLinecap="round" />
+
+      {/* frame */}
+      <path d="M150 100 L218 72" stroke="var(--acc)" strokeWidth="2" strokeOpacity=".7" />
+
+      {/* tail + seat */}
+      <path d="M92 86 L56 74 L50 82 L96 102 Z" fill={`url(#b${id})`} />
+      <rect x="48" y="76" width="7" height="5" rx="2" fill="#ff5c7a" filter={`url(#g${id})`} />
+      <path d="M92 86 C108 77 132 76 146 82 L144 96 L98 100 Z" fill="#141927" stroke="#2a3145" strokeWidth="1.5" />
+
+      {/* tank */}
+      <path d="M140 84 C152 60 200 56 218 70 L212 98 L150 102 Z" fill={`url(#b${id})`} />
+      <path d="M156 74 C170 64 196 62 208 70" fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="2.5" strokeLinecap="round" />
+
+      {/* front fairing + headlight */}
+      <path d="M214 70 L238 58 L250 86 L220 100 Z" fill={`url(#b${id})`} />
+      <circle cx="244" cy="80" r="7" fill="#fff" filter={`url(#g${id})`} />
+      <circle cx="244" cy="80" r="3" fill="var(--acc)" />
+
+      {/* handlebar + mirror */}
+      <path d="M222 58 L242 50" stroke="#e6e9f2" strokeWidth="4" strokeLinecap="round" />
+      <path d="M232 54 L236 40" stroke="#8b90a5" strokeWidth="2" />
+      <ellipse cx="237" cy="37" rx="6" ry="3.5" fill="#1a1f2e" stroke={neon} strokeWidth="1.5" />
     </svg>
   );
+}
+
+/** Kept for existing screens — every vehicle is the one motorcycle now. */
+export function BikeArt({ className }: { kind?: BikeClassId; className?: string }) {
+  return <MotoArt className={className} beam={false} />;
 }
 
 /* ---------- Live map (never blank: works fully offline) ---------- */

@@ -1,11 +1,11 @@
 import { ArrowLeft, Bell, MapPin, Navigation, Clock3, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card, IconBtn, Page, Pill, SectionTitle } from '@/components/ui';
-import { BikeArt, Logo } from '@/components/art';
+import { BikeArt, Logo, MotoArt } from '@/components/art';
 import { RouteLine, StatusPill, useUnread } from '@/components/shared';
 import { go } from '@/lib/router';
 import { useStore } from '@/lib/store';
-import { BIKE_CLASSES } from '@/lib/config';
+import { MOTO } from '@/lib/config';
 import { egp } from '@/lib/format';
 import { modeOf } from '@/lib/actions';
 import type { User } from '@/lib/types';
@@ -104,25 +104,40 @@ export function Home({ user }: { user: User }) {
         </div>
       </section>
 
-      {/* fleet */}
+      {/* the vehicle */}
       <section>
-        <SectionTitle>الأسطول</SectionTitle>
-        <div className="grid grid-cols-2 gap-3">
-          {BIKE_CLASSES.map((b) => (
-            <button key={b.id} onClick={() => go(`/book?bike=${b.id}`)} className="text-right glass rounded-3xl p-3.5 hover:bg-surface-2 transition">
-              <BikeArt kind={b.id} className="w-full h-16" />
-              <div className="mt-2 flex items-center justify-between">
-                <span className="font-semibold">{b.name}</span>
-                <span className="text-[9px] tracking-widest text-muted" dir="ltr">{b.en}</span>
+        <SectionTitle>رحلتك على</SectionTitle>
+        <button onClick={() => go('/book')} className="group relative w-full text-right overflow-hidden rounded-[30px] glass p-5 hover:bg-surface-2 transition">
+          <div className="absolute -left-16 -bottom-16 size-64 rounded-full bg-acc/15 blur-3xl" />
+          <div className="absolute inset-0 grid-bg opacity-40" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-bold">{MOTO.name}</h3>
+                <span className="text-[10px] tracking-[0.35em] text-muted" dir="ltr">{MOTO.en}</span>
               </div>
-              <p className="text-[11px] text-muted mt-0.5">{b.tagline}</p>
-              <p className="text-xs mt-2">
-                <span className="text-acc font-semibold">{egp(b.once)}</span>
-                <span className="text-muted"> للمشوار</span>
-              </p>
-            </button>
-          ))}
-        </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {MOTO.tagline.split(' · ').map((t) => (
+                  <span key={t} className="h-7 px-3 rounded-full bg-acc/12 border border-acc/25 text-acc text-xs font-medium grid place-items-center">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="text-left">
+              <p className="text-[11px] text-muted">المشوار من</p>
+              <p className="text-xl font-bold text-grad tabular-nums">{egp(MOTO.once)}</p>
+            </div>
+          </div>
+          <MotoArt className="relative w-full h-auto mt-1 group-hover:-translate-x-2 transition duration-500" />
+          <div className="relative mt-1 grid grid-cols-3 gap-2">
+            {MOTO.perks.map((p) => (
+              <span key={p} className="text-[11px] text-muted text-center rounded-xl bg-white/[.04] border border-line py-2 px-1">
+                {p}
+              </span>
+            ))}
+          </div>
+        </button>
       </section>
     </Page>
   );

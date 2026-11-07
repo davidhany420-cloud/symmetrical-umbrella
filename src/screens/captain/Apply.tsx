@@ -1,8 +1,8 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Camera, Check, IdCard, FileBadge, Bike, UserRound, Hash, MapPinned } from 'lucide-react';
 import { Button, Field, Page, TopBar, cx } from '@/components/ui';
-import { BikeArt } from '@/components/art';
-import { BIKE_CLASSES, GOVERNORATES } from '@/lib/config';
+import { MotoArt } from '@/components/art';
+import { GOVERNORATES, MOTO } from '@/lib/config';
 import { compressImage } from '@/lib/format';
 import { logout, submitCaptainProfile } from '@/lib/actions';
 import { toast } from '@/lib/toast';
@@ -11,7 +11,7 @@ import type { BikeClassId, CaptainProfile, User } from '@/lib/types';
 type Photos = Pick<CaptainProfile, 'photo' | 'idPhoto' | 'licensePhoto' | 'bikePhoto'>;
 
 export function Apply({ user, prev }: { user: User; prev?: CaptainProfile }) {
-  const [bike, setBike] = useState<BikeClassId>(prev?.bikeClass ?? 'scooter');
+  const bike: BikeClassId = prev?.bikeClass ?? MOTO.id;
   const [model, setModel] = useState(prev?.bikeModel ?? '');
   const [plate, setPlate] = useState(prev?.plate ?? '');
   const [gov, setGov] = useState(prev?.governorate ?? GOVERNORATES[0]);
@@ -42,16 +42,13 @@ export function Apply({ user, prev }: { user: User; prev?: CaptainProfile }) {
         {prev?.status === 'rejected' && (
           <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">طلبك اترفض: {prev.rejectReason || 'راجع البيانات'} — عدّل وابعته تاني</div>
         )}
-        <section className="space-y-3">
-          <h3 className="text-sm text-muted">نوع الموتوسيكل</h3>
-          <div className="grid grid-cols-2 gap-2.5">
-            {BIKE_CLASSES.map((b) => (
-              <button key={b.id} onClick={() => setBike(b.id)} className={cx('glass rounded-2xl p-3 text-right transition', bike === b.id && 'border-acc! bg-acc/8')}>
-                <BikeArt kind={b.id} className="w-full h-12" />
-                <span className="text-sm font-medium mt-1 block">{b.name}</span>
-              </button>
-            ))}
+        <section className="relative overflow-hidden rounded-3xl glass p-4 flex items-center gap-3">
+          <div className="flex-1">
+            <p className="font-bold">هتشتغل على {MOTO.name}</p>
+            <p className="text-xs text-acc mt-1">{MOTO.tagline}</p>
+            <p className="text-[11px] text-muted mt-2">أي موتوسيكل أو سكوتر بحالة كويسة ورخصته سارية.</p>
           </div>
+          <MotoArt className="w-32 h-auto shrink-0" />
         </section>
         <section className="space-y-4">
           <Field label="الماركة والموديل" icon={<Bike />} value={model} onChange={(e) => setModel(e.target.value)} placeholder="مثلاً: Honda Dio 2023" error={errors.model} />

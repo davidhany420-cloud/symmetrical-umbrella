@@ -1,6 +1,5 @@
 import { UserCheck, Wallet, Bike, Users, Route as RouteIcon, BadgeDollarSign, ArrowLeft, Clock3 } from 'lucide-react';
 import { Avatar, Pill } from '@/components/ui';
-import { BIKE_CLASSES } from '@/lib/config';
 import { useStore } from '@/lib/store';
 import { go } from '@/lib/router';
 import { isSubscribed } from '@/lib/actions';
@@ -35,10 +34,10 @@ export function Overview() {
   const trend = prevWeek ? Math.round(((thisWeek - prevWeek) / prevWeek) * 100) : 0;
 
   const revenue = s.payments.filter((p) => p.status === 'approved').reduce((a, p) => a + p.amount, 0);
-  const gmvByClass = BIKE_CLASSES.map((b) => {
-    const rows = confirmed.filter((x) => x.bikeClass === b.id);
-    return { label: b.name, value: rows.reduce((a, x) => a + (x.price ?? 0), 0), sub: `${num(rows.length)} مشوار` };
-  }).sort((a, b) => b.value - a.value);
+  const byType = (['once', 'monthly'] as const).map((t) => {
+    const rows = confirmed.filter((x) => x.type === t);
+    return { label: t === 'once' ? 'مشوار واحد' : 'اشتراك شهري', value: rows.reduce((a, x) => a + (x.price ?? 0), 0), sub: `${num(rows.length)} مشوار` };
+  });
 
   const boys = confirmed.filter((b) => b.mode === 'boys').length;
   const girls = confirmed.length - boys;
@@ -116,10 +115,10 @@ export function Overview() {
 
         <section className="glass rounded-3xl p-6 flex flex-col gap-6">
           <div>
-            <h2 className="font-semibold">قيمة المشاوير حسب الفئة</h2>
+            <h2 className="font-semibold">قيمة المشاوير حسب النوع</h2>
             <p className="text-xs text-muted mt-1">إجمالي الأسعار المتفق عليها</p>
           </div>
-          <BarList rows={gmvByClass} format={egp} />
+          <BarList rows={byType} format={egp} />
           <div className="mt-auto pt-5 border-t border-line">
             <p className="text-sm font-medium mb-3">سكة الشباب مقابل سكة البنات</p>
             <SplitBar a={boys} b={girls} aLabel="شباب" bLabel="بنات" />
