@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Phone, Lock, User as UserIcon, Eye, EyeOff, Bike, Users } from 'lucide-react';
-import { Button, Field, Page, Segmented, TopBar, cx } from '@/components/ui';
-import { Logo } from '@/components/art';
-import { back, useRoute } from '@/lib/router';
+import { Button, Field, Page, Segmented, cx } from '@/components/ui';
+import { MotoArt, Wordmark } from '@/components/art';
+import { go, useRoute } from '@/lib/router';
 import { login, register } from '@/lib/actions';
 import { validPhone } from '@/lib/format';
 import { toast } from '@/lib/toast';
@@ -47,10 +47,17 @@ export function Auth() {
 
   return (
     <Page>
-      <TopBar title="" onBack={() => back('/')} />
+      <header className="px-5 pt-[max(env(safe-area-inset-top),18px)] pb-2 flex items-center justify-between">
+        <Wordmark />
+        <button onClick={() => go('/welcome')} className="text-xs text-muted hover:text-text h-9 px-3 rounded-xl glass">
+          تعرّف على التطبيق
+        </button>
+      </header>
       <div className="px-5 pb-10">
-        <Logo size={56} />
-        <h1 className="mt-5 text-[28px] font-bold leading-tight">{tab === 'login' ? 'أهلاً بيك تاني' : role === 'captain' ? 'ابدأ كابتن معانا' : 'اعمل حسابك'}</h1>
+        <div className="relative -mx-2 mt-2">
+          <MotoArt className="w-full max-w-[300px] h-auto mx-auto" />
+        </div>
+        <h1 className="mt-2 text-[28px] font-bold leading-tight">{tab === 'login' ? 'أهلاً بيك تاني' : role === 'captain' ? 'ابدأ كابتن معانا' : 'اعمل حسابك'}</h1>
         <p className="mt-1.5 text-sm text-muted">{tab === 'login' ? 'ادخل برقم موبايلك وكلمة السر' : 'دقيقة واحدة وتبقى في السكة'}</p>
 
         <div className="mt-6 space-y-3">

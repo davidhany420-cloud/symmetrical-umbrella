@@ -37,7 +37,8 @@ export default function App() {
 
   let screen;
   if (!ready) screen = <Splash key="splash" />;
-  else if (!user) screen = section === 'auth' ? <Auth key="auth" /> : <Onboarding key="ob" skipIntro={onboarded} />;
+  // anyone opening the link lands on sign-in; the app tour lives at #/welcome
+  else if (!user) screen = section === 'welcome' ? <Onboarding key="ob" skipIntro={onboarded} /> : <Auth key="auth" />;
   else if (user.role === 'captain') screen = <CaptainApp user={user} />;
   else screen = <ClientApp user={user} />;
 

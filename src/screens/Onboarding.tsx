@@ -23,7 +23,7 @@ export function Onboarding({ skipIntro }: { skipIntro: boolean }) {
     <Page className="flex flex-col min-h-dvh md:min-h-[calc(100dvh-48px)] px-5 pt-[max(env(safe-area-inset-top),20px)] pb-[max(env(safe-area-inset-bottom),20px)]">
       <div className="flex items-center justify-between">
         <Wordmark />
-        <button onClick={() => start('/auth?role=client')} className="text-sm text-muted hover:text-text">
+        <button onClick={() => start('/')} className="text-sm text-muted hover:text-text">
           دخول
         </button>
       </div>
@@ -51,7 +51,7 @@ export function Onboarding({ skipIntro }: { skipIntro: boolean }) {
       <div className="mt-5">
         <Segmented
           value={mode}
-          onChange={(v) => go(v === 'girls' ? '/?mode=girls' : '/', true)}
+          onChange={(v) => go(v === 'girls' ? '/welcome?mode=girls' : '/welcome', true)}
           options={[
             { value: 'boys', label: 'سكة الشباب' },
             { value: 'girls', label: 'سكة البنات' },
