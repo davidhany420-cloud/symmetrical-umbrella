@@ -189,9 +189,10 @@ export function eligibleCaptains(mode: Mode, bike: string) {
 }
 
 export async function createBooking(input: Omit<Booking, 'id' | 'status' | 'createdAt' | 'messages' | 'clientId' | 'mode'>): Promise<string | null> {
+  // send whichever points were picked on the map (pickup, destination, or both)
   const coords =
-    input.fromLat !== undefined && input.toLat !== undefined
-      ? { p_from_lat: input.fromLat, p_from_lng: input.fromLng, p_to_lat: input.toLat, p_to_lng: input.toLng }
+    input.fromLat !== undefined || input.toLat !== undefined
+      ? { p_from_lat: input.fromLat ?? null, p_from_lng: input.fromLng ?? null, p_to_lat: input.toLat ?? null, p_to_lng: input.toLng ?? null }
       : {};
   const args = {
     p_captain: input.captainId,
