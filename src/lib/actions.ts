@@ -273,4 +273,3 @@ export async function markNoticesRead(_to: string) {
   await call('mark_notices_read');
 }
 
-export { setOnboarded as finishOnboarding } from './store';

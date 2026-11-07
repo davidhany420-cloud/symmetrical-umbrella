@@ -22,7 +22,6 @@ const empty = (): State => ({
   live: [],
   sessionUserId: null,
   isAdmin: false,
-  onboarded: readOnboarded(),
 });
 
 let state: State = empty();
@@ -30,22 +29,6 @@ const listeners = new Set<() => void>();
 const errorListeners = new Set<(msg: string) => void>();
 let channel: RealtimeChannel | null = null;
 let liveChannel: RealtimeChannel | null = null;
-
-function readOnboarded() {
-  try {
-    return localStorage.getItem('felsekka:onboarded') === '1';
-  } catch {
-    return false;
-  }
-}
-export function setOnboarded() {
-  try {
-    localStorage.setItem('felsekka:onboarded', '1');
-  } catch {
-    /* fine */
-  }
-  setState((s) => ({ ...s, onboarded: true }));
-}
 
 export const getState = () => state;
 
@@ -127,7 +110,7 @@ async function loadOnce() {
   const linesQ = db.from('lines').select('*').order('created_at');
   if (!uid) {
     const { data: lines } = await linesQ;
-    setState((s) => ({ ...empty(), onboarded: s.onboarded, ready: true, lines: (lines ?? []).map(mapLine) }));
+    setState(() => ({ ...empty(), ready: true, lines: (lines ?? []).map(mapLine) }));
     return;
   }
 

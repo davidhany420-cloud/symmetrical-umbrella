@@ -133,5 +133,4 @@ export interface State {
   live: LivePos[];
   sessionUserId: string | null;
   isAdmin: boolean;
-  onboarded: boolean;
 }

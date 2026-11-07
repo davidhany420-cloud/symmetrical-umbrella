@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Phone, Lock, User as UserIcon, Eye, EyeOff, Bike, Users } from 'lucide-react';
 import { Button, Field, Page, Segmented, cx } from '@/components/ui';
 import { MotoArt, Wordmark } from '@/components/art';
-import { go, useRoute } from '@/lib/router';
+import { useRoute } from '@/lib/router';
 import { login, register } from '@/lib/actions';
 import { validPhone } from '@/lib/format';
 import { toast } from '@/lib/toast';
@@ -49,9 +49,6 @@ export function Auth() {
     <Page>
       <header className="px-5 pt-[max(env(safe-area-inset-top),18px)] pb-2 flex items-center justify-between">
         <Wordmark />
-        <button onClick={() => go('/welcome')} className="text-xs text-muted hover:text-text h-9 px-3 rounded-xl glass">
-          تعرّف على التطبيق
-        </button>
       </header>
       <div className="px-5 pb-10">
         <div className="relative -mx-2 mt-2">

@@ -6,7 +6,6 @@ import { modeOf } from './lib/actions';
 import { toast } from './lib/toast';
 import { Toaster } from './components/ui';
 import { Logo } from './components/art';
-import { Onboarding } from './screens/Onboarding';
 import { Auth } from './screens/Auth';
 import { ClientApp } from './screens/client/ClientApp';
 import { CaptainApp } from './screens/captain/CaptainApp';
@@ -14,7 +13,6 @@ import { CaptainApp } from './screens/captain/CaptainApp';
 export default function App() {
   const { parts, query } = useRoute();
   const user = useStore((s) => s.users.find((u) => u.id === s.sessionUserId) ?? null);
-  const onboarded = useStore((s) => s.onboarded);
   const ready = useStore((s) => s.ready);
   const section = parts[0] ?? '';
 
@@ -30,15 +28,15 @@ export default function App() {
   // Route guards
   useEffect(() => {
     if (!ready) return;
-    if (!user && !['', 'auth', 'welcome'].includes(section)) go('/', true);
-    if (user?.role === 'client' && (section === 'captain' || section === '' || section === 'auth' || section === 'welcome')) go('/home', true);
+    if (!user && !['', 'auth'].includes(section)) go('/', true);
+    if (user?.role === 'client' && (section === 'captain' || section === '' || section === 'auth')) go('/home', true);
     if (user?.role === 'captain' && section !== 'captain') go('/captain', true);
   }, [user, section, ready]);
 
   let screen;
   if (!ready) screen = <Splash key="splash" />;
-  // anyone opening the link lands on sign-in; the app tour lives at #/welcome
-  else if (!user) screen = section === 'welcome' ? <Onboarding key="ob" skipIntro={onboarded} /> : <Auth key="auth" />;
+  // anyone opening the link lands on sign-in
+  else if (!user) screen = <Auth key="auth" />;
   else if (user.role === 'captain') screen = <CaptainApp user={user} />;
   else screen = <ClientApp user={user} />;
 
