@@ -1,12 +1,16 @@
 import { GOOGLE_MAPS_KEY } from './config';
 
 /**
- * Loads the Google Maps JavaScript API once. Resolves to null when no key is
- * configured or the script fails, so callers can fall back to the built-in map.
+ * Two map providers behind one interface:
+ *  - Google Maps when GOOGLE_MAPS_KEY is set in config.ts
+ *  - otherwise OpenStreetMap (free, no key): Leaflet for the map, Photon for search
  */
-let loader: Promise<typeof google | null> | null = null;
+export const provider: 'google' | 'osm' = GOOGLE_MAPS_KEY ? 'google' : 'osm';
 
-export const mapsEnabled = () => !!GOOGLE_MAPS_KEY;
+/** A real map is always available (free OpenStreetMap when there's no Google key). */
+export const mapsEnabled = () => true;
+
+let loader: Promise<typeof google | null> | null = null;
 
 export function loadMaps(): Promise<typeof google | null> {
   if (!GOOGLE_MAPS_KEY) return Promise.resolve(null);
@@ -53,8 +57,78 @@ export interface Suggestion {
   pick: () => Promise<{ label: string; lat: number; lng: number } | null>;
 }
 
-/** Place search limited to Egypt (Places API "New"). */
-export async function searchPlaces(input: string, token: google.maps.places.AutocompleteSessionToken, near?: { lat: number; lng: number }): Promise<Suggestion[]> {
+/* ---------------- unified search / reverse geocode ---------------- */
+let gToken: google.maps.places.AutocompleteSessionToken | null = null;
+
+export async function findPlaces(input: string, near?: { lat: number; lng: number }): Promise<Suggestion[]> {
+  if (input.trim().length < 2) return [];
+  if (provider === 'osm') return photonSearch(input, near);
+  if (!gToken) gToken = await newSessionToken();
+  if (!gToken) return [];
+  const t = gToken;
+  return (await googleSearch(input, t, near)).map((s) => ({
+    ...s,
+    pick: async () => {
+      gToken = null; // a session ends when a place is picked
+      return s.pick();
+    },
+  }));
+}
+
+export async function placeName(lat: number, lng: number): Promise<string | null> {
+  return provider === 'osm' ? photonReverse(lat, lng) : reverseGeocode(lat, lng);
+}
+
+/* ---- OpenStreetMap (Photon by Komoot — free, built for type-ahead search) ---- */
+const EGYPT_BBOX = '24.7,22.0,36.9,31.7'; // minLon,minLat,maxLon,maxLat
+
+interface PhotonFeature {
+  geometry: { coordinates: [number, number] };
+  properties: { osm_id: number; name?: string; street?: string; housenumber?: string; district?: string; city?: string; county?: string; state?: string };
+}
+
+const photonLabel = (p: PhotonFeature['properties']) => {
+  const main = p.name || [p.street, p.housenumber].filter(Boolean).join(' ') || p.district || p.city || '';
+  const sub = [p.name ? p.street : undefined, p.district, p.city || p.county, p.state].filter((x, i, a) => x && x !== main && a.indexOf(x) === i).join('، ');
+  return { main, sub };
+};
+
+async function photonSearch(q: string, near?: { lat: number; lng: number }): Promise<Suggestion[]> {
+  const u = new URL('https://photon.komoot.io/api/');
+  u.searchParams.set('q', q);
+  u.searchParams.set('limit', '6');
+  u.searchParams.set('bbox', EGYPT_BBOX);
+  if (near) {
+    u.searchParams.set('lat', String(near.lat));
+    u.searchParams.set('lon', String(near.lng));
+  }
+  const res = await fetch(u);
+  if (!res.ok) return [];
+  const { features } = (await res.json()) as { features: PhotonFeature[] };
+  return features
+    .map((f) => {
+      const { main, sub } = photonLabel(f.properties);
+      const [lng, lat] = f.geometry.coordinates;
+      return { id: `${f.properties.osm_id}-${lat}`, main, secondary: sub, pick: async () => ({ label: main, lat, lng }) };
+    })
+    .filter((s) => s.main);
+}
+
+async function photonReverse(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`);
+    if (!res.ok) return null;
+    const { features } = (await res.json()) as { features: PhotonFeature[] };
+    if (!features[0]) return null;
+    const { main, sub } = photonLabel(features[0].properties);
+    return [main, sub.split('، ')[0]].filter(Boolean).join('، ') || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ---- Google (Places API "New") ---- */
+async function googleSearch(input: string, token: google.maps.places.AutocompleteSessionToken, near?: { lat: number; lng: number }): Promise<Suggestion[]> {
   const g = await loadMaps();
   if (!g || input.trim().length < 2) return [];
   const { AutocompleteSuggestion } = (await g.maps.importLibrary('places')) as google.maps.PlacesLibrary;
@@ -85,15 +159,15 @@ export async function searchPlaces(input: string, token: google.maps.places.Auto
     });
 }
 
-export async function newSessionToken() {
+async function newSessionToken() {
   const g = await loadMaps();
   if (!g) return null;
   const { AutocompleteSessionToken } = (await g.maps.importLibrary('places')) as google.maps.PlacesLibrary;
   return new AutocompleteSessionToken();
 }
 
-/** Coordinates → short Arabic address. */
-export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+/** Coordinates → short Arabic address (Google). */
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   const g = await loadMaps();
   if (!g) return null;
   try {

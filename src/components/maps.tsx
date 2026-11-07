@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { LocateFixed, Loader2, MapPin } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { cx } from './ui';
-import { DARK_STYLE, currentPosition, loadMaps, mapsEnabled, newSessionToken, reverseGeocode, searchPlaces, type Suggestion } from '@/lib/maps';
+import { DARK_STYLE, currentPosition, findPlaces, loadMaps, placeName, provider, type Suggestion } from '@/lib/maps';
 import { toast } from '@/lib/toast';
 import type { Place } from '@/lib/types';
 
@@ -13,6 +15,9 @@ export interface MapPoint {
   title?: string;
   heading?: number;
 }
+
+/** keep the caller's positioning (absolute) instead of forcing relative */
+const frame = (className?: string) => (/\b(absolute|fixed)\b/.test(className ?? '') ? '' : 'relative');
 
 const cssVar = (n: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fallback;
 
@@ -32,17 +37,118 @@ function iconFor(g: typeof google, p: MapPoint): google.maps.Symbol {
   };
 }
 
-/**
- * Google map in the app's dark style. Renders `fallback` when maps aren't
- * configured or fail to load, so the screen is never blank.
- */
-export function MapView({ points, className, fallback, follow, line = true }: { points: MapPoint[]; className?: string; fallback?: ReactNode; follow?: string; line?: boolean }) {
+interface MapProps {
+  points: MapPoint[];
+  className?: string;
+  fallback?: ReactNode;
+  follow?: string;
+  line?: boolean;
+}
+
+/** Live map in the app's dark style — Google Maps with a key, OpenStreetMap otherwise. */
+export function MapView(props: MapProps) {
+  return provider === 'google' ? <GoogleMapView {...props} /> : <OsmMapView {...props} />;
+}
+
+/* ---------------- OpenStreetMap (Leaflet) ---------------- */
+function osmIcon(p: MapPoint) {
+  const html =
+    p.kind === 'captain'
+      ? `<div class="fs-pin-captain" style="transform:rotate(${p.heading ?? 0}deg)"><span></span></div>`
+      : `<div class="fs-pin-${p.kind}"></div>`;
+  const size = p.kind === 'captain' ? 34 : 20;
+  return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+}
+
+function OsmMapView({ points, className, follow, line = true }: MapProps) {
+  const el = useRef<HTMLDivElement>(null);
+  const map = useRef<L.Map | null>(null);
+  const markers = useRef(new Map<string, L.Marker>());
+  const poly = useRef<L.Polyline | null>(null);
+  const fittedFor = useRef('');
+
+  useEffect(() => {
+    if (!el.current || map.current) return;
+    const m = L.map(el.current, { zoomControl: false, attributionControl: true }).setView([30.0444, 31.2357], 12);
+    L.control.zoom({ position: 'bottomleft' }).addTo(m);
+    m.attributionControl.setPrefix(false);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      className: 'fs-dark-tiles',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
+    }).addTo(m);
+    map.current = m;
+    // the container may be laid out after mount (animations) — fix tile sizing
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(el.current);
+    return () => {
+      ro.disconnect();
+      m.remove();
+      map.current = null;
+      markers.current.clear();
+      fittedFor.current = '';
+    };
+  }, []);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    const seen = new Set<string>();
+    for (const p of points) {
+      seen.add(p.id);
+      const existing = markers.current.get(p.id);
+      if (existing) {
+        existing.setLatLng([p.lat, p.lng]);
+        existing.setIcon(osmIcon(p));
+      } else {
+        markers.current.set(p.id, L.marker([p.lat, p.lng], { icon: osmIcon(p), title: p.title, zIndexOffset: p.kind === 'captain' ? 1000 : 0, keyboard: false }).addTo(m));
+      }
+    }
+    for (const [id, mk] of markers.current) {
+      if (!seen.has(id)) {
+        mk.remove();
+        markers.current.delete(id);
+      }
+    }
+    const a = points.find((p) => p.kind === 'pickup');
+    const b = points.find((p) => p.kind === 'drop');
+    poly.current?.remove();
+    poly.current = null;
+    if (line && a && b) {
+      poly.current = L.polyline(
+        [
+          [a.lat, a.lng],
+          [b.lat, b.lng],
+        ],
+        { color: cssVar('--acc', '#3df5ff'), weight: 3, dashArray: '6 10', opacity: 0.9 },
+      ).addTo(m);
+    }
+    const key = points.map((p) => p.id).sort().join('|');
+    if (points.length && key !== fittedFor.current) {
+      fittedFor.current = key;
+      if (points.length === 1) m.setView([points[0].lat, points[0].lng], 15);
+      else m.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng] as [number, number])), { padding: [48, 48], maxZoom: 16 });
+    } else if (follow) {
+      const f = points.find((p) => p.id === follow);
+      if (f) m.panTo([f.lat, f.lng], { animate: true });
+    }
+  }, [points, follow, line]);
+
+  return (
+    <div className={cx(frame(className), 'overflow-hidden rounded-3xl border border-line bg-[#0b0e16] isolate', className)}>
+      <div ref={el} className="absolute inset-0" />
+    </div>
+  );
+}
+
+/* ---------------- Google Maps ---------------- */
+function GoogleMapView({ points, className, fallback, follow, line = true }: MapProps) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
   const markers = useRef(new Map<string, google.maps.Marker>());
   const poly = useRef<google.maps.Polyline | null>(null);
   const fittedFor = useRef('');
-  const [g, setG] = useState<typeof google | null | undefined>(mapsEnabled() ? undefined : null);
+  const [g, setG] = useState<typeof google | null | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
@@ -121,7 +227,7 @@ export function MapView({ points, className, fallback, follow, line = true }: { 
 
   if (g === null) return <div className={className}>{fallback}</div>;
   return (
-    <div className={cx('relative overflow-hidden rounded-3xl border border-line bg-[#0b0e16]', className)}>
+    <div className={cx(frame(className), 'overflow-hidden rounded-3xl border border-line bg-[#0b0e16]', className)}>
       <div ref={el} className="absolute inset-0" />
       {g === undefined && (
         <div className="absolute inset-0 grid place-items-center">
@@ -138,40 +244,39 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Suggestion[]>([]);
   const [busy, setBusy] = useState(false);
-  const token = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const seq = useRef(0);
+  const picked = useRef(value.label); // label of the last chosen place — no need to search it again
 
   useEffect(() => setText(value.label), [value.label]);
 
   useEffect(() => {
-    if (!mapsEnabled() || !open) return;
+    if (!open) return;
     const q = text.trim();
-    if (q.length < 2 || q === value.label) {
+    if (q.length < 2 || q === picked.current) {
       setItems([]);
       return;
     }
     const n = ++seq.current;
     const t = setTimeout(async () => {
       try {
-        if (!token.current) token.current = await newSessionToken();
-        if (!token.current) return;
-        const res = await searchPlaces(q, token.current, near);
+        const res = await findPlaces(q, near);
         if (n === seq.current) setItems(res);
       } catch {
         if (n === seq.current) setItems([]);
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [text, open, value.label, near]);
+  }, [text, open, near]);
 
   const choose = async (s: Suggestion) => {
     setBusy(true);
     setOpen(false);
     const p = await s.pick().catch(() => null);
-    token.current = null; // a session ends when a place is picked
     setBusy(false);
-    if (p) onChange(p);
-    else onChange({ label: s.main });
+    const next = p ?? { label: s.main };
+    picked.current = next.label;
+    setItems([]);
+    onChange(next);
   };
 
   const locate = async () => {
@@ -180,7 +285,9 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
       const pos = await currentPosition();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const name = (await reverseGeocode(lat, lng)) ?? 'موقعي الحالي';
+      const name = (await placeName(lat, lng)) ?? 'موقعي الحالي';
+      picked.current = name;
+      setItems([]);
       onChange({ label: name, lat, lng });
     } catch {
       toast('مقدرناش نوصل لموقعك — فعّل صلاحية الموقع من إعدادات المتصفح', 'err');
@@ -200,8 +307,8 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
           onChange={(e) => {
             setText(e.target.value);
             setOpen(true);
-            if (!mapsEnabled()) onChange({ label: e.target.value });
-            else if (pinned) onChange({ label: e.target.value });
+            // typing replaces a previously pinned place until a suggestion is picked
+            onChange({ label: e.target.value });
           }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 180)}
@@ -239,7 +346,7 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
             </button>
           ))}
           <div className="px-4 py-1.5 text-[10px] text-muted/60 text-left" dir="ltr">
-            Google
+            {provider === 'google' ? 'Google' : '© OpenStreetMap'}
           </div>
         </div>
       )}

@@ -114,3 +114,15 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- OpenStreetMap (Leaflet) in the app's dark look ---------- */
+.leaflet-container { background: #0b0e16; font-family: inherit; }
+.fs-dark-tiles { filter: invert(1) hue-rotate(195deg) brightness(.85) contrast(.92) saturate(.55); }
+.leaflet-control-attribution { background: rgba(5, 6, 10, .7) !important; color: var(--muted) !important; font-size: 9px; border-radius: 8px 0 0 0; }
+.leaflet-control-attribution a { color: var(--muted) !important; }
+.leaflet-bar a { background: #11141d !important; color: var(--text) !important; border-color: var(--line) !important; }
+.leaflet-bar { border: 1px solid var(--line) !important; border-radius: 12px !important; overflow: hidden; }
+.fs-pin-pickup { width: 20px; height: 20px; border-radius: 50%; background: #05060a; border: 4px solid var(--acc-2); box-shadow: 0 0 0 4px color-mix(in oklab, var(--acc-2) 30%, transparent); }
+.fs-pin-drop { width: 20px; height: 20px; border-radius: 50%; background: var(--acc); border: 4px solid #05060a; box-shadow: 0 0 0 4px color-mix(in oklab, var(--acc) 35%, transparent); }
+.fs-pin-captain { width: 34px; height: 34px; border-radius: 50%; background: color-mix(in oklab, var(--acc) 22%, transparent); display: grid; place-items: center; transition: transform .4s; }
+.fs-pin-captain span { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid var(--acc); filter: drop-shadow(0 0 6px var(--acc)); }
