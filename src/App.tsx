@@ -6,6 +6,7 @@ import { modeOf } from './lib/actions';
 import { toast } from './lib/toast';
 import { Toaster } from './components/ui';
 import { Logo } from './components/art';
+import { useUpdateAvailable } from './lib/updates';
 import { Auth } from './screens/Auth';
 import { ClientApp } from './screens/client/ClientApp';
 import { CaptainApp } from './screens/captain/CaptainApp';
@@ -46,6 +47,7 @@ export default function App() {
         <AnimatePresence mode="wait">{screen}</AnimatePresence>
       </div>
       <Toaster />
+      <UpdateBanner page="index.html" />
     </div>
   );
 }
@@ -60,5 +62,18 @@ function Splash() {
         <p className="text-xs text-muted">بنجهّز السكة…</p>
       </div>
     </div>
+  );
+}
+
+function UpdateBanner({ page }: { page: 'index.html' | 'admin.html' }) {
+  const show = useUpdateAvailable(page);
+  if (!show) return null;
+  return (
+    <button
+      onClick={() => window.location.reload()}
+      className="fixed z-[70] bottom-[max(env(safe-area-inset-bottom),96px)] left-1/2 -translate-x-1/2 h-11 px-5 rounded-2xl bg-grad text-acc-ink text-sm font-semibold glow shadow-2xl whitespace-nowrap"
+    >
+      فيه تحديث جديد — دوس هنا
+    </button>
   );
 }

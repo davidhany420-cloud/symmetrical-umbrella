@@ -12,6 +12,7 @@ import { Overview } from './Overview';
 import { Applications } from './Applications';
 import { Captains } from './Captains';
 import { Payments, Riders, Rides, Lines, Settings } from './Pages';
+import { useUpdateAvailable } from '@/lib/updates';
 import { LiveMapPage } from './LiveMap';
 
 export default function AdminApp() {
@@ -38,6 +39,7 @@ export default function AdminApp() {
         <Gate firstTime={!hasAdmin} onDone={() => setHasAdmin(true)} />
       )}
       <Toaster />
+      <UpdateBanner page="admin.html" />
     </>
   );
 }
@@ -296,5 +298,18 @@ function BellMenu({ onClose }: { onClose: () => void }) {
         </div>
       </motion.div>
     </>
+  );
+}
+
+function UpdateBanner({ page }: { page: 'index.html' | 'admin.html' }) {
+  const show = useUpdateAvailable(page);
+  if (!show) return null;
+  return (
+    <button
+      onClick={() => window.location.reload()}
+      className="fixed z-[70] bottom-[max(env(safe-area-inset-bottom),96px)] left-1/2 -translate-x-1/2 h-11 px-5 rounded-2xl bg-grad text-acc-ink text-sm font-semibold glow shadow-2xl whitespace-nowrap"
+    >
+      فيه تحديث جديد — دوس هنا
+    </button>
   );
 }
