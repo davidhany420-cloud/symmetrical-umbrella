@@ -117,8 +117,9 @@ async function loadOnce() {
     return;
   }
 
-  const [profiles, captains, priv, payments, lines, bookings, messages, notices, admin, live] = await Promise.all([
-    db.from('profiles').select('*'),
+  const [profiles, captains, priv, payments, lines, bookings, messages, notices, admin, live, phones] = await Promise.all([
+    // phone numbers are private: they come only from visible_phones() below
+    db.from('profiles').select('id, role, name, gender, created_at'),
     db.from('captains').select('*'),
     db.from('captain_private').select('*'),
     db.from('payments').select('*').order('created_at', { ascending: false }),
@@ -128,6 +129,7 @@ async function loadOnce() {
     db.from('notices').select('*').order('id', { ascending: false }).limit(200),
     db.rpc('is_admin'),
     db.from('captain_live').select('*'),
+    db.rpc('visible_phones'),
   ]);
   const firstErr = [profiles, captains, priv, payments, lines, bookings, messages, notices].find((r) => r.error)?.error;
   if (firstErr) reportError('مشكلة في الاتصال — بنحاول تاني');
@@ -141,11 +143,12 @@ async function loadOnce() {
   ]);
   const url = (p?: string | null) => (p ? urls.get(p) : undefined);
 
+  const phoneBy = new Map<string, string>(((phones.data as { id: string; phone: string }[] | null) ?? []).map((x) => [x.id, x.phone]));
   const users: User[] = (profiles.data ?? []).map((p) => ({
     id: p.id,
     role: p.role,
     name: p.name,
-    phone: p.phone,
+    phone: phoneBy.get(p.id) ?? '',
     gender: p.gender,
     createdAt: ms(p.created_at)!,
   }));

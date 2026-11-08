@@ -54,7 +54,7 @@ export function MapView(props: MapProps) {
 function osmIcon(p: MapPoint) {
   const html =
     p.kind === 'captain'
-      ? `<div class="fs-pin-captain" style="transform:rotate(${p.heading ?? 0}deg)"><span></span></div>`
+      ? `<div class="fs-pin-captain" style="transform:rotate(${Number(p.heading) || 0}deg)"><span></span></div>`
       : `<div class="fs-pin-${p.kind}"></div>`;
   const size = p.kind === 'captain' ? 34 : 20;
   return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });

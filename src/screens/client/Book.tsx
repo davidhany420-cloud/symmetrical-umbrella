@@ -9,7 +9,7 @@ import { getState, useStore } from '@/lib/store';
 import { MOTO, tripPrice } from '@/lib/config';
 import { roadKm } from '@/lib/route';
 import { egp } from '@/lib/format';
-import { NEARBY_KM, createBooking, modeOf, nearbyCaptains, userById } from '@/lib/actions';
+import { NEARBY_KM, createBooking, fetchNearby, modeOf, nearbyCaptains, userById } from '@/lib/actions';
 import { toast } from '@/lib/toast';
 import type { BookingType, Place, User } from '@/lib/types';
 import { MapView, PlaceField } from '@/components/maps';
@@ -53,7 +53,19 @@ export function Book({ user }: { user: User }) {
   const captainsVersion = useStore((s) => s.captains);
   const liveVersion = useStore((s) => s.live);
   const pickup = from.lat !== undefined ? { lat: from.lat, lng: from.lng! } : undefined;
-  const captains = useMemo(() => nearbyCaptains(mode, pickup), [mode, captainsVersion, liveVersion, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [serverNearby, setServerNearby] = useState<{ captainId: string; km: number }[] | null>(null);
+  useEffect(() => {
+    if (!pickup) return;
+    let alive = true;
+    const load = () => void fetchNearby(pickup).then((r) => alive && setServerNearby(r));
+    load();
+    const t = setInterval(load, 15000); // captains move and go on/offline
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  const captains = useMemo(() => nearbyCaptains(mode, pickup, serverNearby), [mode, captainsVersion, liveVersion, serverNearby, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canNext = [!!route, !!captainId, !!route][step];
 

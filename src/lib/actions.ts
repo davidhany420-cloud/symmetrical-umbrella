@@ -20,6 +20,8 @@ const ERRORS: [RegExp, string][] = [
   [/price mismatch|distance mismatch/i, 'السعر اتغيّر — ارجع خطوة وجرّب تاني'],
   [/pickup and destination required/i, 'حدد مكان الركوب والوجهة على الخريطة'],
   [/price is fixed/i, 'السعر ثابت — تقدر تقبل أو تعتذر بس'],
+  [/too many pending requests/i, 'عندك طلبين مستنيين رد — استنى أو الغي واحد الأول'],
+  [/Database error saving new user/i, 'البيانات دي مش مظبوطة — راجع الاسم ورقم الموبايل'],
   [/rate limit/i, 'محاولات كتير ورا بعض — استنى دقيقة وجرّب تاني'],
   [/failed to fetch|network/i, 'مفيش اتصال بالإنترنت'],
   [/admin only/i, 'العملية دي للأدمن بس'],
@@ -53,14 +55,19 @@ async function uploadDataUrl(path: string, dataUrl?: string) {
 /* ---------------- auth ---------------- */
 export async function register(input: { role: Role; name: string; phone: string; gender: Gender; password: string }): Promise<User> {
   const phone = normalizeDigits(input.phone).trim();
-  const { data, error } = await db.auth.signUp({ email: phoneToEmail(phone), password: input.password });
+  const profile = { role: input.role, name: input.name.trim(), phone, gender: input.gender };
+  // the database creates the profile together with the account (trigger on sign-up)
+  const { data, error } = await db.auth.signUp({ email: phoneToEmail(phone), password: input.password, options: { data: profile } });
   if (error) throw new Error(friendly(error));
   const id = data.user?.id;
   if (!id || !data.session) throw new Error('حصلت مشكلة في التسجيل — جرّب تاني');
-  const { error: pe } = await db.from('profiles').insert({ id, role: input.role, name: input.name.trim(), phone, gender: input.gender });
-  if (pe) {
-    await db.auth.signOut();
-    throw new Error(friendly(pe));
+  const { data: existing } = await db.from('profiles').select('id').eq('id', id).maybeSingle();
+  if (!existing) {
+    const { error: pe } = await db.from('profiles').insert({ id, ...profile });
+    if (pe) {
+      await db.auth.signOut({ scope: 'local' });
+      throw new Error(friendly(pe));
+    }
   }
   await reload();
   return userById(id)!;
@@ -249,10 +256,26 @@ export const NEARBY_KM = 20;
 /** A position older than this is treated as unknown. */
 export const FRESH_MS = 3 * 60_000;
 
+/**
+ * Server-side search for nearby captains: returns only who is near and how far,
+ * never their exact position. null = not available (older database) → use local positions.
+ */
+export async function fetchNearby(pickup: { lat: number; lng: number }): Promise<{ captainId: string; km: number }[] | null> {
+  const { data, error } = await db.rpc('nearby_captains', { p_lat: pickup.lat, p_lng: pickup.lng, p_radius_km: NEARBY_KM });
+  if (error) return null;
+  return (data as { captain_id: string; distance_km: number }[]).map((r) => ({ captainId: r.captain_id, km: Number(r.distance_km) }));
+}
+
 /** Captains that can take this ride, nearest first, with distance to the pickup point. */
-export function nearbyCaptains(mode: Mode, pickup?: { lat: number; lng: number }) {
+export function nearbyCaptains(mode: Mode, pickup?: { lat: number; lng: number }, fromServer?: { captainId: string; km: number }[] | null) {
   const all = eligibleCaptains(mode);
   if (!pickup) return all.map((c) => ({ c, dist: null as number | null }));
+  if (fromServer) {
+    return fromServer
+      .map((n) => ({ c: all.find((c) => c.userId === n.captainId), dist: n.km }))
+      .filter((x): x is { c: CaptainProfile; dist: number } => !!x.c)
+      .sort((a, b) => a.dist - b.dist);
+  }
   const now = Date.now();
   const live = getState().live;
   return all
