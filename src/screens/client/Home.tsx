@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, MapPin, Navigation, Clock3, Sparkles } from 'lucide-react';
+import { ArrowLeft, Bell, MapPin, Navigation, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card, IconBtn, Page, Pill, SectionTitle } from '@/components/ui';
 import { BikeArt, Logo, MotoArt } from '@/components/art';
@@ -47,7 +47,7 @@ export function Home({ user }: { user: User }) {
             <Sparkles className="size-3" /> {girls ? 'سكة البنات' : 'سكة الشباب'}
           </Pill>
           <h2 className="mt-3 text-2xl font-bold leading-snug">رايح فين النهارده؟</h2>
-          <p className="mt-1 text-sm opacity-75">اشتراك شهري أو مشوار واحد — بـ {perKm} ج للكيلو بس</p>
+          <p className="mt-1 text-sm opacity-75">موتوسيكل يوصلك دلوقتي — بـ {perKm} ج للكيلو بس</p>
           <div className="mt-4 flex items-center gap-3 h-12 px-4 rounded-2xl bg-black/20 backdrop-blur">
             <MapPin className="size-5" />
             <span className="flex-1 text-sm opacity-80">اكتب وجهتك…</span>
@@ -82,15 +82,13 @@ export function Home({ user }: { user: User }) {
 
       {/* fixed lines */}
       <section>
-        <SectionTitle action={<span className="text-[11px] text-muted">اشتراك شهري</span>}>خطوط ثابتة قريبة منك</SectionTitle>
+        <SectionTitle>أماكن مشهورة</SectionTitle>
         <div className="-mx-5 px-5 flex gap-3 overflow-x-auto snap-x pb-1">
           {lines.map((l) => (
             <button key={l.id} onClick={() => go(`/book?line=${l.id}`)} className="snap-start shrink-0 w-[230px] text-right glass rounded-3xl p-4 hover:bg-surface-2 transition">
               <div className="flex items-center justify-between">
                 <Pill tone="muted">{l.governorate}</Pill>
-                <span className="text-[11px] text-muted inline-flex items-center gap-1">
-                  <Clock3 className="size-3" /> {l.time}
-                </span>
+                
               </div>
               <div className="mt-3">
                 <RouteLine from={l.from} to={l.to} compact />

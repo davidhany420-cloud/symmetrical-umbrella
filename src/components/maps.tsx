@@ -3,7 +3,7 @@ import { LocateFixed, Loader2, MapPin } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cx } from './ui';
-import { DARK_STYLE, currentPosition, findPlaces, loadMaps, placeName, provider, type Suggestion } from '@/lib/maps';
+import { DARK_STYLE, LOCATE_HELP, currentPosition, findPlaces, loadMaps, placeName, provider, type LocateError, type Suggestion } from '@/lib/maps';
 import { toast } from '@/lib/toast';
 import type { Place } from '@/lib/types';
 
@@ -244,6 +244,7 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Suggestion[]>([]);
   const [busy, setBusy] = useState(false);
+  const [locErr, setLocErr] = useState<LocateError | null>(null);
   const seq = useRef(0);
   const picked = useRef(value.label); // label of the last chosen place — no need to search it again
 
@@ -281,16 +282,25 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
 
   const locate = async () => {
     setBusy(true);
+    setLocErr(null);
     try {
       const pos = await currentPosition();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const name = (await placeName(lat, lng)) ?? 'موقعي الحالي';
-      picked.current = name;
+      // show the pin right away; the street name follows when it arrives
+      picked.current = 'موقعي الحالي';
       setItems([]);
-      onChange({ label: name, lat, lng });
-    } catch {
-      toast('مقدرناش نوصل لموقعك — فعّل صلاحية الموقع من إعدادات المتصفح', 'err');
+      onChange({ label: 'موقعي الحالي', lat, lng });
+      setBusy(false);
+      const name = await placeName(lat, lng);
+      if (name) {
+        picked.current = name;
+        onChange({ label: name, lat, lng });
+      }
+    } catch (e) {
+      const err: LocateError = typeof e === 'string' && e in LOCATE_HELP ? (e as LocateError) : 'timeout';
+      setLocErr(err);
+      toast(LOCATE_HELP[err].title, 'err');
     } finally {
       setBusy(false);
     }
@@ -329,6 +339,16 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
           </button>
         )}
       </div>
+      {locErr && !pinned && (
+        <div className="rounded-2xl border border-warn/30 bg-warn/[.06] p-3 text-xs space-y-1.5">
+          <p className="font-semibold text-warn">{LOCATE_HELP[locErr].title}</p>
+          <ol className="list-decimal pr-4 space-y-0.5 text-muted">
+            {LOCATE_HELP[locErr].steps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </div>
+      )}
       {pinned && (
         <span className="flex items-center gap-1 text-[11px] text-ok px-1">
           <MapPin className="size-3" /> متحدد على الخريطة

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { MapPin, Flag, Clock3, Check, UserX, Send, Zap, Lock } from 'lucide-react';
-import { Button, Field, Page, Segmented, TopBar, Empty, Pill, cx } from '@/components/ui';
+import { MapPin, Flag, Check, UserX, Send, Zap, Lock } from 'lucide-react';
+import { Button, Page, TopBar, Empty, Pill, cx } from '@/components/ui';
 import { MotoArt } from '@/components/art';
 import { CaptainRow, RouteLine } from '@/components/shared';
 import { back, go, useRoute } from '@/lib/router';
 import { getState, useStore } from '@/lib/store';
-import { DAYS, MOTO, WEEKS_PER_MONTH, tripPrice } from '@/lib/config';
+import { MOTO, tripPrice } from '@/lib/config';
 import { roadKm } from '@/lib/route';
 import { egp } from '@/lib/format';
 import { NEARBY_KM, createBooking, modeOf, nearbyCaptains, userById } from '@/lib/actions';
@@ -23,11 +23,10 @@ export function Book({ user }: { user: User }) {
   const mode = modeOf(user.gender);
 
   const [step, setStep] = useState(0);
-  const [type, setType] = useState<BookingType>(line ? 'monthly' : 'once');
+  // one ride, right now — no subscriptions or scheduling
+  const type: BookingType = 'once';
   const [from, setFrom] = useState<Place>({ label: line?.from ?? '' });
   const [to, setTo] = useState<Place>({ label: line?.to ?? '' });
-  const [time, setTime] = useState(line?.time ?? '08:00');
-  const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [captainId, setCaptainId] = useState<string | null>(null);
 
   // fixed price: road distance × price per km from the database (no haggling)
@@ -48,7 +47,7 @@ export function Book({ user }: { user: User }) {
       alive = false;
     };
   }, [from.lat, from.lng, to.lat, to.lng]);
-  const price = route ? tripPrice(route.km, type, days, perKm) : 0;
+  const price = route ? tripPrice(route.km, type, [], perKm) : 0;
 
   // nearest available captains to the pickup point; re-evaluated whenever captains or positions change
   const captainsVersion = useStore((s) => s.captains);
@@ -56,7 +55,7 @@ export function Book({ user }: { user: User }) {
   const pickup = from.lat !== undefined ? { lat: from.lat, lng: from.lng! } : undefined;
   const captains = useMemo(() => nearbyCaptains(mode, pickup), [mode, captainsVersion, liveVersion, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canNext = [!!route && (type === 'once' || days.length > 0), !!captainId, !!route][step];
+  const canNext = [!!route, !!captainId, !!route][step];
 
   const [sending, setSending] = useState(false);
   const next = async () => {
@@ -71,8 +70,8 @@ export function Book({ user }: { user: User }) {
       type,
       from: from.label.trim(),
       to: to.label.trim(),
-      time,
-      days: type === 'monthly' ? days : [],
+      time: new Date().toTimeString().slice(0, 5), // now
+      days: [],
       bikeClass: captains.find((x) => x.c.userId === captainId)?.c.bikeClass ?? MOTO.id,
       offer: price,
       distanceKm: route!.km,
@@ -90,7 +89,7 @@ export function Book({ user }: { user: User }) {
 
   return (
     <Page className="flex flex-col min-h-dvh md:min-h-[calc(100dvh-48px)]">
-      <TopBar title={type === 'monthly' ? 'اشتراك شهري' : 'مشوار جديد'} sub={`خطوة ${step + 1} من ${STEPS.length} · ${STEPS[step]}`} onBack={() => (step ? setStep(step - 1) : back('/home'))} />
+      <TopBar title="مشوار جديد" sub={`خطوة ${step + 1} من ${STEPS.length} · ${STEPS[step]}`} onBack={() => (step ? setStep(step - 1) : back('/home'))} />
       <div className="px-5">
         <div className="flex gap-1.5">
           {STEPS.map((s, i) => (
@@ -119,7 +118,6 @@ export function Book({ user }: { user: User }) {
                   </div>
                   <MotoArt className="relative w-36 h-auto shrink-0 -my-2" />
                 </div>
-                <Segmented value={type} onChange={setType} options={[{ value: 'once', label: 'مشوار واحد' }, { value: 'monthly', label: 'اشتراك شهري' }]} />
                 <PlaceField label="من" icon={<MapPin />} value={from} onChange={setFrom} placeholder="مكان الركوب — ابحث أو دوس موقعي" />
                 {from.label.trim().length > 1 && from.lat === undefined && (
                   <p className="text-[11px] text-warn px-1 -mt-2">اختار مكان الركوب من الاقتراحات أو دوس "موقعي" — علشان نوريك أقرب كابتن</p>
@@ -141,19 +139,6 @@ export function Book({ user }: { user: User }) {
                   <div className="flex items-center justify-between rounded-2xl bg-acc/[.07] border border-acc/25 px-4 h-14">
                     <span className="text-sm text-muted">{measuring ? 'بنحسب المسافة…' : `${route!.km.toFixed(1)} كم${route!.minutes ? ` · حوالي ${route!.minutes} دقيقة` : ''}`}</span>
                     {route && <span className="text-lg font-bold text-grad tabular-nums">{egp(tripPrice(route.km, 'once', [], perKm))}</span>}
-                  </div>
-                )}
-                <Field label={type === 'monthly' ? 'معاد التحرك كل يوم' : 'معاد التحرك'} icon={<Clock3 />} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-                {type === 'monthly' && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted px-1">أيام الاشتراك</span>
-                    <div className="grid grid-cols-7 gap-1.5">
-                      {DAYS.map((d, i) => (
-                        <button key={d} type="button" onClick={() => setDays((x) => (x.includes(i) ? x.filter((y) => y !== i) : [...x, i].sort()))} className={cx('h-11 rounded-xl text-[11px] font-medium transition', days.includes(i) ? 'bg-grad text-acc-ink' : 'glass text-muted')}>
-                          {d}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 )}
                 {line && <Pill tone="acc">خط ثابت: {line.name}</Pill>}
@@ -202,7 +187,7 @@ export function Book({ user }: { user: User }) {
             {step === 2 && (
               <>
                 <div className="glass rounded-3xl p-5 text-center">
-                  <p className="text-xs text-muted">سعر {type === 'monthly' ? 'الاشتراك الشهري' : 'المشوار'}</p>
+                  <p className="text-xs text-muted">سعر المشوار</p>
                   <div className="mt-2 text-5xl font-bold text-grad tabular-nums">
                     {price}
                     <span className="text-lg text-muted font-normal"> ج</span>
@@ -210,7 +195,6 @@ export function Book({ user }: { user: User }) {
                   {route && (
                     <p className="mt-3 text-sm text-muted tabular-nums">
                       {route.km.toFixed(1)} كم × {perKm} ج للكيلو
-                      {type === 'monthly' && ` × ${days.length} يوم × ${WEEKS_PER_MONTH} أسابيع`}
                     </p>
                   )}
                   <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-ok">
@@ -230,10 +214,7 @@ export function Book({ user }: { user: User }) {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted">المعاد</span>
-                    <span>
-                      {time}
-                      {type === 'monthly' && ` · ${days.map((d) => DAYS[d]).join('، ')}`}
-                    </span>
+                    <span>دلوقتي</span>
                   </div>
                 </div>
               </>

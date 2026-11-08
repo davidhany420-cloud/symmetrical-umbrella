@@ -180,9 +180,45 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   }
 }
 
-export function currentPosition(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('unsupported'));
-    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
-  });
+export type LocateError = 'unsupported' | 'insecure' | 'denied' | 'off' | 'timeout';
+
+const getPos = (opts: PositionOptions) =>
+  new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts));
+
+/**
+ * The phone's location. Tries a quick fix first (network / recent fix), then real GPS.
+ * Rejects with a LocateError the UI can explain.
+ */
+export async function currentPosition(): Promise<GeolocationPosition> {
+  if (!window.isSecureContext) throw 'insecure' as LocateError;
+  if (!('geolocation' in navigator)) throw 'unsupported' as LocateError;
+  const fail = (e: GeolocationPositionError): LocateError => (e.code === e.PERMISSION_DENIED ? 'denied' : e.code === e.POSITION_UNAVAILABLE ? 'off' : 'timeout');
+  try {
+    return await getPos({ enableHighAccuracy: false, timeout: 7000, maximumAge: 120000 });
+  } catch (e) {
+    const err = fail(e as GeolocationPositionError);
+    if (err === 'denied') throw err;
+  }
+  try {
+    return await getPos({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  } catch (e) {
+    throw fail(e as GeolocationPositionError);
+  }
 }
+
+export const LOCATE_HELP: Record<LocateError, { title: string; steps: string[] }> = {
+  denied: {
+    title: 'المتصفح مش سامح للتطبيق يعرف مكانك',
+    steps: ['دوس على علامة القفل 🔒 جنب الرابط فوق', 'اختار "الأذونات" أو "إعدادات الموقع"', 'خلّي "الموقع" على "سماح"، وبعدين دوس "موقعي" تاني'],
+  },
+  off: {
+    title: 'الـ GPS مقفول في الموبايل',
+    steps: ['افتح شريط الإعدادات السريعة من فوق الشاشة', 'شغّل "الموقع" / Location', 'ارجع ودوس "موقعي" تاني'],
+  },
+  timeout: {
+    title: 'الموبايل لسه مش لاقي مكانك',
+    steps: ['اتأكد إن الـ GPS شغّال', 'لو إنت جوه مكان مقفول قرّب من الشباك', 'دوس "موقعي" تاني — أو اكتب اسم المكان'],
+  },
+  unsupported: { title: 'المتصفح ده مش بيدعم تحديد المكان', steps: ['اكتب اسم المكان واختاره من الاقتراحات'] },
+  insecure: { title: 'تحديد المكان محتاج رابط آمن (https)', steps: ['افتح التطبيق من الرابط الأصلي'] },
+};
