@@ -203,6 +203,7 @@ async function loadOnce() {
     fromLng: b.from_lng ?? undefined,
     toLat: b.to_lat ?? undefined,
     toLng: b.to_lng ?? undefined,
+    distanceKm: b.distance_km !== null && b.distance_km !== undefined ? Number(b.distance_km) : undefined,
   }));
 
   const nts: Notice[] = (notices.data ?? []).map((n) => ({ id: String(n.id), to: n.to_admin ? 'admin' : n.to_user, text: n.text, at: ms(n.created_at)!, read: n.read }));

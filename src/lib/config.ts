@@ -44,6 +44,15 @@ export const MOTO: BikeClass = {
   perks: ['خوذة مع كل مشوار', 'كابتن موثّق', 'أسرع من الزحمة'],
 };
 export const BIKE_CLASSES: BikeClass[] = [MOTO];
+
+/* ---------- Pricing: fixed per kilometre, no haggling (the server enforces the same rule) ---------- */
+export const PRICE_PER_KM = 3;
+/** Monthly subscription = one ride per chosen day for 4 weeks. */
+export const WEEKS_PER_MONTH = 4;
+export function tripPrice(km: number, type: 'once' | 'monthly', days: number[]) {
+  const one = Math.max(Math.ceil(km * PRICE_PER_KM), 1);
+  return type === 'monthly' ? one * Math.max(days.length, 1) * WEEKS_PER_MONTH : one;
+}
 export const bikeClass = (_id?: BikeClassId) => MOTO;
 
 export const DAYS = ['أحد', 'اتنين', 'تلات', 'أربع', 'خميس', 'جمعة', 'سبت'];

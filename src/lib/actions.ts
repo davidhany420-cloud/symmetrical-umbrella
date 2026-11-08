@@ -17,6 +17,9 @@ const ERRORS: [RegExp, string][] = [
   [/payments_one_pending|duplicate key.*payments/i, 'عندك دفعة لسه بتتراجع'],
   [/same_password|different from the old/i, 'كلمة السر الجديدة لازم تبقى مختلفة عن القديمة'],
   [/weak_password|at least \d+ characters|password should/i, 'كلمة السر الجديدة ضعيفة — خليها 8 حروف أو أكتر'],
+  [/price mismatch|distance mismatch/i, 'السعر اتغيّر — ارجع خطوة وجرّب تاني'],
+  [/pickup and destination required/i, 'حدد مكان الركوب والوجهة على الخريطة'],
+  [/price is fixed/i, 'السعر ثابت — تقدر تقبل أو تعتذر بس'],
   [/rate limit/i, 'محاولات كتير ورا بعض — استنى دقيقة وجرّب تاني'],
   [/failed to fetch|network/i, 'مفيش اتصال بالإنترنت'],
   [/admin only/i, 'العملية دي للأدمن بس'],
@@ -192,12 +195,7 @@ export function eligibleCaptains(mode: Mode) {
 }
 
 export async function createBooking(input: Omit<Booking, 'id' | 'status' | 'createdAt' | 'messages' | 'clientId' | 'mode'>): Promise<string | null> {
-  // send whichever points were picked on the map (pickup, destination, or both)
-  const coords =
-    input.fromLat !== undefined || input.toLat !== undefined
-      ? { p_from_lat: input.fromLat ?? null, p_from_lng: input.fromLng ?? null, p_to_lat: input.toLat ?? null, p_to_lng: input.toLng ?? null }
-      : {};
-  const args = {
+  const { data, error } = await db.rpc('create_booking', {
     p_captain: input.captainId,
     p_type: input.type,
     p_from: input.from,
@@ -206,12 +204,12 @@ export async function createBooking(input: Omit<Booking, 'id' | 'status' | 'crea
     p_days: input.days,
     p_bike_class: input.bikeClass,
     p_offer: input.offer,
-  };
-  let { data, error } = await db.rpc('create_booking', { ...args, ...coords });
-  // database not updated with the map columns yet (002_live_location.sql) — book without coordinates
-  if (error && Object.keys(coords).length && /PGRST202|function .* does not exist|Could not find the function/i.test(`${error.code} ${error.message}`)) {
-    ({ data, error } = await db.rpc('create_booking', args));
-  }
+    p_from_lat: input.fromLat ?? null,
+    p_from_lng: input.fromLng ?? null,
+    p_to_lat: input.toLat ?? null,
+    p_to_lng: input.toLng ?? null,
+    p_distance_km: input.distanceKm ?? null,
+  });
   if (error) {
     reportError(friendly(error));
     return null;
@@ -220,7 +218,7 @@ export async function createBooking(input: Omit<Booking, 'id' | 'status' | 'crea
   return data as string;
 }
 
-export const captainRespond = (id: string, action: 'accept' | 'reject' | 'counter', counter?: number) => call('captain_respond', { p_booking: id, p_action: action, p_counter: counter ?? null });
+export const captainRespond = (id: string, action: 'accept' | 'reject') => call('captain_respond', { p_booking: id, p_action: action });
 export const clientAnswerCounter = (id: string, accept: boolean) => call('client_answer_counter', { p_booking: id, p_accept: accept });
 export const cancelBooking = (id: string) => call('cancel_booking', { p_booking: id });
 export const completeBooking = (id: string, rating: number) => call('complete_booking', { p_booking: id, p_rating: rating });

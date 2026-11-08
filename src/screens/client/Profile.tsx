@@ -17,7 +17,7 @@ export function Profile({ user }: { user: User }) {
 
   return (
     <Page>
-      <TopBar title="حسابي" />
+      <TopBar title="حسابي" onBack={() => go('/home')} />
       <div className="px-5 pb-6 space-y-4">
         <Card className="!p-5 flex items-center gap-4">
           <Avatar name={user.name} size={64} ring />
@@ -68,7 +68,7 @@ export function Alerts({ user }: { user: User }) {
   useEffect(() => () => void markNoticesRead(user.id), [user.id]);
   return (
     <Page>
-      <TopBar title="التنبيهات" />
+      <TopBar title="التنبيهات" onBack={() => go('/home')} />
       <div className="px-5 pb-6 space-y-2.5">
         {list.length === 0 ? (
           <Empty icon={<Bell />} title="مفيش تنبيهات" sub="هنبلغك هنا بكل جديد في مشاويرك" />

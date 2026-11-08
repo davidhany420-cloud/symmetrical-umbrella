@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { MapPin, Flag, Clock3, Minus, Plus, Check, UserX, Send, Zap } from 'lucide-react';
+import { MapPin, Flag, Clock3, Check, UserX, Send, Zap, Lock } from 'lucide-react';
 import { Button, Field, Page, Segmented, TopBar, Empty, Pill, cx } from '@/components/ui';
 import { MotoArt } from '@/components/art';
 import { CaptainRow, RouteLine } from '@/components/shared';
 import { back, go, useRoute } from '@/lib/router';
 import { getState, useStore } from '@/lib/store';
-import { DAYS, MOTO } from '@/lib/config';
+import { DAYS, MOTO, PRICE_PER_KM, WEEKS_PER_MONTH, tripPrice } from '@/lib/config';
+import { roadKm } from '@/lib/route';
 import { egp } from '@/lib/format';
 import { NEARBY_KM, createBooking, modeOf, nearbyCaptains, userById } from '@/lib/actions';
 import { toast } from '@/lib/toast';
@@ -29,12 +30,24 @@ export function Book({ user }: { user: User }) {
   const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [captainId, setCaptainId] = useState<string | null>(null);
 
-  const base = line && type === 'monthly' ? line.price : type === 'monthly' ? MOTO.monthly : MOTO.once;
-  const stepSize = type === 'monthly' ? 50 : 5;
-  const [offer, setOffer] = useState<number | null>(null);
-  const price = offer ?? base;
-  const min = Math.round((base * 0.6) / stepSize) * stepSize;
-  const max = Math.round((base * 1.4) / stepSize) * stepSize;
+  // fixed price: road distance × PRICE_PER_KM (no haggling)
+  const [route, setRoute] = useState<{ km: number; minutes: number | null; estimated: boolean } | null>(null);
+  const [measuring, setMeasuring] = useState(false);
+  useEffect(() => {
+    setRoute(null);
+    if (from.lat === undefined || to.lat === undefined) return;
+    let alive = true;
+    setMeasuring(true);
+    void roadKm({ lat: from.lat, lng: from.lng! }, { lat: to.lat, lng: to.lng! }).then((r) => {
+      if (!alive) return;
+      setRoute(r);
+      setMeasuring(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [from.lat, from.lng, to.lat, to.lng]);
+  const price = route ? tripPrice(route.km, type, days) : 0;
 
   // nearest available captains to the pickup point; re-evaluated whenever captains or positions change
   const captainsVersion = useStore((s) => s.captains);
@@ -42,13 +55,12 @@ export function Book({ user }: { user: User }) {
   const pickup = from.lat !== undefined ? { lat: from.lat, lng: from.lng! } : undefined;
   const captains = useMemo(() => nearbyCaptains(mode, pickup), [mode, captainsVersion, liveVersion, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canNext = [from.lat !== undefined && to.label.trim().length > 1 && (type === 'once' || days.length > 0), !!captainId, true][step];
+  const canNext = [!!route && (type === 'once' || days.length > 0), !!captainId, !!route][step];
 
   const [sending, setSending] = useState(false);
   const next = async () => {
     if (step < 2) {
       if (step === 0) setCaptainId(null);
-      if (step === 1) setOffer(null);
       setStep(step + 1);
       return;
     }
@@ -62,6 +74,7 @@ export function Book({ user }: { user: User }) {
       days: type === 'monthly' ? days : [],
       bikeClass: captains.find((x) => x.c.userId === captainId)?.c.bikeClass ?? MOTO.id,
       offer: price,
+      distanceKm: route!.km,
       fromLat: from.lat,
       fromLng: from.lng,
       toLat: to.lat,
@@ -73,7 +86,6 @@ export function Book({ user }: { user: User }) {
     go(`/ride/${id}`, true);
   };
 
-  const hint = price >= base ? 'سعر عادل — فرصة قبول عالية' : price >= base * 0.85 ? 'ممكن الكابتن يقبل أو يقترح سعر' : 'سعر قليل — غالباً هيقترح سعر تاني';
 
   return (
     <Page className="flex flex-col min-h-dvh md:min-h-[calc(100dvh-48px)]">
@@ -106,7 +118,7 @@ export function Book({ user }: { user: User }) {
                   </div>
                   <MotoArt className="relative w-36 h-auto shrink-0 -my-2" />
                 </div>
-                <Segmented value={type} onChange={(v) => { setType(v); setOffer(null); }} options={[{ value: 'once', label: 'مشوار واحد' }, { value: 'monthly', label: 'اشتراك شهري' }]} />
+                <Segmented value={type} onChange={setType} options={[{ value: 'once', label: 'مشوار واحد' }, { value: 'monthly', label: 'اشتراك شهري' }]} />
                 <PlaceField label="من" icon={<MapPin />} value={from} onChange={setFrom} placeholder="مكان الركوب — ابحث أو دوس موقعي" />
                 {from.label.trim().length > 1 && from.lat === undefined && (
                   <p className="text-[11px] text-warn px-1 -mt-2">اختار مكان الركوب من الاقتراحات أو دوس "موقعي" — علشان نوريك أقرب كابتن</p>
@@ -120,6 +132,15 @@ export function Book({ user }: { user: User }) {
                       ...(to.lat !== undefined ? [{ id: 'to', kind: 'drop' as const, lat: to.lat, lng: to.lng! }] : []),
                     ]}
                   />
+                )}
+                {to.label.trim().length > 1 && to.lat === undefined && (
+                  <p className="text-[11px] text-warn px-1 -mt-2">اختار الوجهة من الاقتراحات علشان نحسب المسافة والسعر</p>
+                )}
+                {(measuring || route) && (
+                  <div className="flex items-center justify-between rounded-2xl bg-acc/[.07] border border-acc/25 px-4 h-14">
+                    <span className="text-sm text-muted">{measuring ? 'بنحسب المسافة…' : `${route!.km.toFixed(1)} كم${route!.minutes ? ` · حوالي ${route!.minutes} دقيقة` : ''}`}</span>
+                    {route && <span className="text-lg font-bold text-grad tabular-nums">{egp(tripPrice(route.km, 'once', []))}</span>}
+                  </div>
                 )}
                 <Field label={type === 'monthly' ? 'معاد التحرك كل يوم' : 'معاد التحرك'} icon={<Clock3 />} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
                 {type === 'monthly' && (
@@ -180,26 +201,20 @@ export function Book({ user }: { user: User }) {
             {step === 2 && (
               <>
                 <div className="glass rounded-3xl p-5 text-center">
-                  <p className="text-xs text-muted">عرضك {type === 'monthly' ? 'للشهر' : 'للمشوار'}</p>
-                  <div className="mt-3 flex items-center justify-center gap-4">
-                    <button onClick={() => setOffer(Math.min(max, price + stepSize))} className="size-12 rounded-2xl glass grid place-items-center active:scale-95" aria-label="زوّد">
-                      <Plus className="size-5" />
-                    </button>
-                    <motion.div key={price} initial={{ scale: 0.9, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} className="min-w-[150px] text-5xl font-bold text-grad tabular-nums">
-                      {price}
-                      <span className="text-lg text-muted font-normal"> ج</span>
-                    </motion.div>
-                    <button onClick={() => setOffer(Math.max(min, price - stepSize))} className="size-12 rounded-2xl glass grid place-items-center active:scale-95" aria-label="قلّل">
-                      <Minus className="size-5" />
-                    </button>
+                  <p className="text-xs text-muted">سعر {type === 'monthly' ? 'الاشتراك الشهري' : 'المشوار'}</p>
+                  <div className="mt-2 text-5xl font-bold text-grad tabular-nums">
+                    {price}
+                    <span className="text-lg text-muted font-normal"> ج</span>
                   </div>
-                  <input type="range" min={min} max={max} step={stepSize} value={price} onChange={(e) => setOffer(+e.target.value)} className="mt-5 w-full accent-[var(--acc)]" dir="ltr" />
-                  <div className="flex justify-between text-[10px] text-muted" dir="ltr">
-                    <span>{min}</span>
-                    <span>السعر المقترح {base}</span>
-                    <span>{max}</span>
-                  </div>
-                  <p className={cx('mt-4 text-xs', price >= base ? 'text-ok' : price >= base * 0.85 ? 'text-warn' : 'text-danger')}>{hint}</p>
+                  {route && (
+                    <p className="mt-3 text-sm text-muted tabular-nums">
+                      {route.km.toFixed(1)} كم × {PRICE_PER_KM} ج للكيلو
+                      {type === 'monthly' && ` × ${days.length} يوم × ${WEEKS_PER_MONTH} أسابيع`}
+                    </p>
+                  )}
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-ok">
+                    <Lock className="size-3.5" /> سعر ثابت — من غير فصال
+                  </p>
                 </div>
                 <div className="glass rounded-3xl p-4 space-y-3">
                   <RouteLine from={from.label} to={to.label} compact />
@@ -228,7 +243,7 @@ export function Book({ user }: { user: User }) {
 
       <div className="sticky bottom-0 px-5 pt-3 pb-[max(env(safe-area-inset-bottom),18px)] bg-gradient-to-t from-bg via-bg to-transparent">
         <Button size="lg" className="w-full" disabled={!canNext} loading={sending} onClick={next} icon={step === 2 ? <Send className="size-5 -scale-x-100" /> : undefined}>
-          {step === 2 ? `ابعت العرض · ${egp(price)}` : 'التالي'}
+          {step === 2 ? `اطلب الكابتن · ${egp(price)}` : 'التالي'}
         </Button>
       </div>
     </Page>

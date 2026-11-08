@@ -1,20 +1,22 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Home as HomeIcon, Inbox, Wallet, UserRound, Power, Hourglass, Check, X, MessageCircle, Phone, Copy, Receipt, Star, Bell, LogOut, Zap, TrendingUp, ShieldAlert, Radio, Navigation, Flag } from 'lucide-react';
-import { Avatar, Button, Card, Empty, Field, Page, Pill, SectionTitle, Sheet, TopBar, cx } from '@/components/ui';
+import { Avatar, Button, Card, Empty, Field, Page, Pill, SectionTitle, TopBar, cx } from '@/components/ui';
 import { BikeArt, Logo } from '@/components/art';
 import { BottomNav, Chat, RouteLine, StatusPill, useUnread } from '@/components/shared';
 import { Apply, Upload } from './Apply';
 import { MapView } from '@/components/maps';
 import { mapsEnabled } from '@/lib/maps';
 import { startSharing, stopSharing, useSharing } from '@/lib/sharing';
-import { back, go, useRoute } from '@/lib/router';
+import { back, go, useExitGuard, useRoute } from '@/lib/router';
 import { useStore } from '@/lib/store';
-import { DAYS, INSTAPAY_HANDLE, SUBSCRIPTION_PRICE, bikeClass } from '@/lib/config';
+import { DAYS, INSTAPAY_HANDLE, SUBSCRIPTION_PRICE } from '@/lib/config';
 import { dateStr, egp, num, timeAgo } from '@/lib/format';
 import { canTakeRides, captainRespond, directionsUrl, isSubscribed, km, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
 import { toast } from '@/lib/toast';
 import type { Booking, CaptainProfile, User } from '@/lib/types';
+
+const exitHint = () => toast('دوس رجوع تاني علشان تخرج من التطبيق', 'info');
 
 export function CaptainApp({ user }: { user: User }) {
   const { parts } = useRoute();
@@ -23,6 +25,7 @@ export function CaptainApp({ user }: { user: User }) {
   const unread = useUnread(user.id);
   const [, section, id] = parts;
   const sharing = useSharing();
+  useExitGuard(!section, exitHint);
   const working = !!cap && cap.online && canTakeRides(cap);
 
   // while online, the captain's position is shared so nearby riders can find them
@@ -197,9 +200,6 @@ const Stat = ({ icon, v, l }: { icon: ReactNode; v: string; l: string }) => (
 
 function RequestCard({ b }: { b: Booking }) {
   const client = useStore((s) => s.users.find((u) => u.id === b.clientId));
-  const [counterOpen, setCounterOpen] = useState(false);
-  const base = b.type === 'monthly' ? bikeClass(b.bikeClass).monthly : bikeClass(b.bikeClass).once;
-  const [counter, setCounter] = useState(String(base));
   const me = useStore((s) => s.live.find((l) => l.captainId === b.captainId));
 
   return (
@@ -215,7 +215,7 @@ function RequestCard({ b }: { b: Booking }) {
           </div>
           <div className="text-left">
             <p className="text-xl font-bold text-grad">{egp(b.offer)}</p>
-            <p className="text-[10px] text-muted">المقترح {egp(base)}</p>
+            {b.distanceKm !== undefined && <p className="text-[10px] text-muted tabular-nums">{b.distanceKm.toFixed(1)} كم · سعر ثابت</p>}
           </div>
         </div>
         <RouteLine from={b.from} to={b.to} compact />
@@ -224,27 +224,11 @@ function RequestCard({ b }: { b: Booking }) {
           {b.type === 'monthly' && ` · ${b.days.map((d) => DAYS[d]).join('، ')}`}
         </p>
         <RideMap b={b} me={me} />
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <Button size="sm" onClick={() => { captainRespond(b.id, 'accept'); toast('قبلت الطلب ✅'); }} icon={<Check className="size-4" />}>قبول</Button>
-          <Button size="sm" variant="soft" onClick={() => setCounterOpen(true)}>سعر تاني</Button>
-          <Button size="sm" variant="ghost" onClick={() => captainRespond(b.id, 'reject')} icon={<X className="size-4" />}>رفض</Button>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button onClick={() => void captainRespond(b.id, 'accept').then((ok) => ok && toast('قبلت الطلب ✅'))} icon={<Check className="size-4" />}>قبول</Button>
+          <Button variant="ghost" onClick={() => void captainRespond(b.id, 'reject')} icon={<X className="size-4" />}>اعتذار</Button>
         </div>
       </Card>
-      <Sheet open={counterOpen} onClose={() => setCounterOpen(false)} title="اقترح سعر">
-        <Field label="السعر بالجنيه" value={counter} onChange={(e) => setCounter(e.target.value.replace(/\D/g, ''))} inputMode="numeric" dir="ltr" className="text-right text-2xl font-bold" />
-        <Button
-          size="lg"
-          className="w-full mt-5"
-          disabled={!+counter}
-          onClick={() => {
-            captainRespond(b.id, 'counter', +counter);
-            setCounterOpen(false);
-            toast('اتبعت السعر للراكب');
-          }}
-        >
-          ابعت {egp(+counter || 0)}
-        </Button>
-      </Sheet>
     </motion.div>
   );
 }
@@ -347,7 +331,7 @@ function Requests({ user }: { user: User }) {
   const rest = mine.filter((b) => b.status !== 'pending');
   return (
     <Page>
-      <TopBar title="الطلبات" sub={`${num(pending.length)} طلب جديد`} />
+      <TopBar title="الطلبات" sub={`${num(pending.length)} طلب جديد`} onBack={() => go('/captain')} />
       <div className="px-5 pb-6">
         {pending.map((b) => (
           <RequestCard key={b.id} b={b} />
@@ -388,7 +372,7 @@ function WalletScreen({ user, cap }: { user: User; cap: CaptainProfile }) {
   };
   return (
     <Page>
-      <TopBar title="الاشتراك" sub="ادفع بـ InstaPay في دقيقة" />
+      <TopBar title="الاشتراك" sub="ادفع بـ InstaPay في دقيقة" onBack={() => go('/captain')} />
       <div className="px-5 pb-6 space-y-4">
         <SubscriptionCard cap={cap} />
         {!cap.pendingPayment ? (
@@ -447,7 +431,7 @@ function Me({ user, cap }: { user: User; cap: CaptainProfile }) {
   useEffect(() => () => void markNoticesRead(user.id), [user.id]);
   return (
     <Page>
-      <TopBar title="حسابي" />
+      <TopBar title="حسابي" onBack={() => go('/captain')} />
       <div className="px-5 pb-6 space-y-4">
         <Card className="!p-5 flex items-center gap-4">
           <Avatar name={user.name} src={cap.photo} size={64} ring />

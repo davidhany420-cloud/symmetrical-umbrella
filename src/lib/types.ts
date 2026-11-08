@@ -85,6 +85,7 @@ export interface Booking {
   fromLng?: number;
   toLat?: number;
   toLng?: number;
+  distanceKm?: number;
 }
 
 /** A captain's last position while they share location */

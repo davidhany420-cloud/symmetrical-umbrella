@@ -208,8 +208,8 @@ export function Rides() {
                 ['السكة', sel.mode === 'girls' ? 'سكة البنات' : 'سكة الشباب'],
                 ['النوع', sel.type === 'monthly' ? `اشتراك شهري · ${sel.days.map((d) => DAYS[d]).join('، ')}` : 'مشوار واحد'],
                 ['المعاد', sel.time],
-                ['عرض الراكب', egp(sel.offer)],
-                ['السعر النهائي', sel.price ? egp(sel.price) : '—'],
+                ['المسافة', sel.distanceKm !== undefined ? `${sel.distanceKm.toFixed(1)} كم` : '—'],
+                ['السعر', egp(sel.price ?? sel.offer)],
                 ['التقييم', sel.rating ? `${sel.rating} / 5` : '—'],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 px-4 py-3">
@@ -245,7 +245,7 @@ export function Lines() {
   const [edit, setEdit] = useState<Line | null>(null);
   return (
     <>
-      <PageHead title="الخطوط الثابتة" sub="خطوط الاشتراك الشهري اللي بتظهر للركاب في الصفحة الرئيسية" actions={<Button icon={<Plus className="size-4" />} onClick={() => setEdit(emptyLine())}>خط جديد</Button>} />
+      <PageHead title="الخطوط الثابتة" sub="اختصارات لخطوط مشهورة بتظهر للركاب في الرئيسية — السعر بالكيلو" actions={<Button icon={<Plus className="size-4" />} onClick={() => setEdit(emptyLine())}>خط جديد</Button>} />
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         {lines.map((l) => (
           <div key={l.id} className={cx('glass rounded-3xl p-5', !l.active && 'opacity-50')}>
@@ -264,10 +264,7 @@ export function Lines() {
               </div>
             </div>
             <RouteLine from={l.from} to={l.to} compact />
-            <div className="mt-4 pt-4 border-t border-line flex justify-between items-baseline">
-              <span className="text-xs text-muted">الاشتراك الشهري</span>
-              <span className="text-xl font-bold tabular-nums">{egp(l.price)}</span>
-            </div>
+
           </div>
         ))}
       </div>
@@ -303,16 +300,14 @@ function DeleteBtn({ id }: { id: string }) {
 
 function LineForm({ line, onSave }: { line: Line; onSave: (l: Line) => void }) {
   const [l, setL] = useState(line);
-  const ok = l.name.trim() && l.from.trim() && l.to.trim() && l.price > 0;
+  const ok = l.name.trim() && l.from.trim() && l.to.trim();
   return (
     <div className="space-y-4">
       <Field id="line-name" label="اسم الخط" value={l.name} onChange={(e) => setL({ ...l, name: e.target.value })} placeholder="المعادي ⟵ التجمع" />
       <Field id="line-from" label="من" icon={<MapPin />} value={l.from} onChange={(e) => setL({ ...l, from: e.target.value })} />
       <Field id="line-to" label="إلى" icon={<Flag />} value={l.to} onChange={(e) => setL({ ...l, to: e.target.value })} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field id="line-time" label="المعاد" icon={<Clock3 />} type="time" value={l.time} onChange={(e) => setL({ ...l, time: e.target.value })} />
-        <Field id="line-price" label="السعر / شهر" value={String(l.price)} onChange={(e) => setL({ ...l, price: +e.target.value.replace(/\D/g, '') })} inputMode="numeric" />
-      </div>
+      <Field id="line-time" label="المعاد" icon={<Clock3 />} type="time" value={l.time} onChange={(e) => setL({ ...l, time: e.target.value })} />
+      <p className="text-[11px] text-muted px-1">السعر بيتحسب لوحده بالكيلو حسب مكان الراكب.</p>
       <label className="block space-y-1.5">
         <span className="text-xs font-medium text-muted px-1">المحافظة</span>
         <select id="line-gov" value={l.governorate} onChange={(e) => setL({ ...l, governorate: e.target.value })} className="w-full h-14 px-4 rounded-2xl glass outline-none [&>option]:bg-[#0b0d14]">

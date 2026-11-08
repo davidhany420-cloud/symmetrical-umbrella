@@ -19,7 +19,7 @@ export function Rides({ user }: { user: User }) {
 
   return (
     <Page>
-      <TopBar title="مشاويري" />
+      <TopBar title="مشاويري" onBack={() => go('/home')} />
       <div className="px-5 space-y-4 pb-6">
         <Segmented value={tab} onChange={setTab} options={[{ value: 'now', label: 'الحالية' }, { value: 'past', label: 'السابقة' }]} />
         {list.length === 0 ? (
@@ -70,7 +70,7 @@ export function RideDetail({ id }: { id: string }) {
               <span className="relative size-14 rounded-full bg-grad grid place-items-center text-acc-ink font-bold">{b.offer}</span>
             </div>
             <p className="mt-5 font-semibold">مستنيين رد {capUser.name}…</p>
-            <p className="text-xs text-muted mt-1">هيوصلك إشعار أول ما يرد على عرضك</p>
+            <p className="text-xs text-muted mt-1">هيوصلك إشعار أول ما يرد على طلبك</p>
             <Button variant="danger" size="sm" className="mt-5" onClick={() => { cancelBooking(b.id); toast('اتلغى الطلب', 'info'); }}>
               إلغاء الطلب
             </Button>
@@ -125,7 +125,8 @@ export function RideDetail({ id }: { id: string }) {
           <Row k="النوع" v={b.type === 'monthly' ? 'اشتراك شهري' : 'مشوار واحد'} />
           <Row k="الموتوسيكل" v={`${cls.name} · ${cap.bikeModel}`} />
           <Row k="النمرة" v={cap.plate} />
-          <Row k="عرضك" v={egp(b.offer)} />
+          {b.distanceKm !== undefined && <Row k="المسافة" v={`${b.distanceKm.toFixed(1)} كم`} />}
+          <Row k="السعر" v={`${egp(b.price ?? b.offer)} · ثابت`} />
           {b.rating && <Row k="تقييمك" v={<Stars value={b.rating} size={14} />} />}
         </Card>
 

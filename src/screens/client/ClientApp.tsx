@@ -1,5 +1,8 @@
 import { Home as HomeIcon, Route, Plus, Bell, UserRound } from 'lucide-react';
-import { useRoute } from '@/lib/router';
+import { useExitGuard, useRoute } from '@/lib/router';
+import { toast } from '@/lib/toast';
+
+const exitHint = () => toast('دوس رجوع تاني علشان تخرج من التطبيق', 'info');
 import { BottomNav, useUnread } from '@/components/shared';
 import type { User } from '@/lib/types';
 import { Home } from './Home';
@@ -12,6 +15,7 @@ export function ClientApp({ user }: { user: User }) {
   const { parts } = useRoute();
   const unread = useUnread(user.id);
   const [section, id, sub] = parts;
+  useExitGuard(!section || section === 'home', exitHint);
 
   let screen;
   let nav = true;
