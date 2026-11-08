@@ -80,7 +80,8 @@ export async function login(phoneRaw: string, password: string): Promise<User> {
 }
 
 export const logout = async () => {
-  await db.auth.signOut();
+  // 'local' = forget the session on this device without waiting for the server
+  await db.auth.signOut({ scope: 'local' }).catch(() => {});
   await reload();
 };
 

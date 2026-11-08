@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Phone, Lock, User as UserIcon, Eye, EyeOff, Bike, Users } from 'lucide-react';
 import { Button, Field, Page, Segmented, cx } from '@/components/ui';
 import { MotoArt, Wordmark } from '@/components/art';
@@ -19,6 +19,12 @@ export function Auth() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const qRole = query.get('role');
+  const qTab = query.get('tab');
+  useEffect(() => {
+    if (qRole === 'captain' || qRole === 'client') setRole(qRole);
+    if (qTab === 'register' || qTab === 'login') setTab(qTab);
+  }, [qRole, qTab]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

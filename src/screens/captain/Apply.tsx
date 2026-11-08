@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { Camera, Check, IdCard, FileBadge, Bike, UserRound, Hash, MapPinned } from 'lucide-react';
+import { Camera, Check, IdCard, FileBadge, Bike, UserRound, Hash, MapPinned, LogOut } from 'lucide-react';
 import { Button, Field, Page, TopBar, cx } from '@/components/ui';
 import { MotoArt } from '@/components/art';
 import { GOVERNORATES, MOTO } from '@/lib/config';
@@ -37,7 +37,11 @@ export function Apply({ user, prev }: { user: User; prev?: CaptainProfile }) {
 
   return (
     <Page>
-      <TopBar title="بيانات الكابتن" sub={`أهلاً ${user.name} — خطوة واحدة وتبدأ`} right={<button onClick={logout} className="text-xs text-muted">خروج</button>} />
+      <TopBar title="بيانات الكابتن" sub={`أهلاً ${user.name} — خطوة واحدة وتبدأ`} right={
+          <button onClick={() => void logout()} className="h-10 px-3.5 rounded-xl glass text-sm text-muted hover:text-text flex items-center gap-1.5 active:scale-95 transition">
+            <LogOut className="size-4" /> خروج
+          </button>
+        } />
       <div className="px-5 pb-10 space-y-6">
         {prev?.status === 'rejected' && (
           <div className="rounded-2xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">طلبك اترفض: {prev.rejectReason || 'راجع البيانات'} — عدّل وابعته تاني</div>
