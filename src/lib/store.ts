@@ -1,6 +1,6 @@
 import { useRef, useSyncExternalStore } from 'react';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_KEY, SUPABASE_URL } from './config';
+import { DEFAULT_PRICE_PER_KM, SUPABASE_KEY, SUPABASE_URL } from './config';
 import type { Booking, CaptainProfile, Line, LivePos, Message, Notice, PaymentLog, State, User } from './types';
 
 /**
@@ -20,6 +20,7 @@ const empty = (): State => ({
   notices: [],
   payments: [],
   live: [],
+  pricePerKm: DEFAULT_PRICE_PER_KM,
   sessionUserId: null,
   isAdmin: false,
 });
@@ -108,9 +109,11 @@ async function loadOnce() {
   const uid = sess.session?.user.id ?? null;
 
   const linesQ = db.from('lines').select('*').order('created_at');
+  const { data: priceRow } = await db.from('app_settings').select('value').eq('key', 'price_per_km').maybeSingle();
+  const pricePerKm = priceRow ? Number(priceRow.value) : DEFAULT_PRICE_PER_KM;
   if (!uid) {
     const { data: lines } = await linesQ;
-    setState(() => ({ ...empty(), ready: true, lines: (lines ?? []).map(mapLine) }));
+    setState(() => ({ ...empty(), ready: true, pricePerKm, lines: (lines ?? []).map(mapLine) }));
     return;
   }
 
@@ -215,6 +218,7 @@ async function loadOnce() {
   setState((s) => ({
     ...s,
     ready: true,
+    pricePerKm,
     sessionUserId: users.some((u) => u.id === uid) ? uid : null,
     isAdmin: admin.data === true,
     users,
@@ -262,7 +266,7 @@ const soon = () => {
 function listen() {
   if (channel) void db.removeChannel(channel);
   channel = db.channel('felsekka-live');
-  for (const table of ['profiles', 'captains', 'payments', 'bookings', 'messages', 'notices', 'lines']) {
+  for (const table of ['profiles', 'captains', 'payments', 'bookings', 'messages', 'notices', 'lines', 'app_settings']) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, soon);
   }
   // positions change every few seconds — patch them in place instead of reloading everything

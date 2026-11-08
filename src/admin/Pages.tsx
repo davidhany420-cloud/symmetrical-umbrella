@@ -5,7 +5,7 @@ import { RouteLine, STATUS } from '@/components/shared';
 import { useStore } from '@/lib/store';
 import { DAYS, GOVERNORATES, INSTAPAY_HANDLE, SUBSCRIPTION_PRICE, bikeClass } from '@/lib/config';
 import { clock, dateStr, egp, num, timeAgo } from '@/lib/format';
-import { changeAdminPassword, deleteLine, reviewPayment, saveLine } from '@/lib/actions';
+import { setPricePerKm, changeAdminPassword, deleteLine, reviewPayment, saveLine } from '@/lib/actions';
 import { uid } from '@/lib/crypto';
 import { toast } from '@/lib/toast';
 import type { BookingStatus, Line } from '@/lib/types';
@@ -351,6 +351,7 @@ export function Settings() {
     <>
       <PageHead title="الإعدادات" />
       <div className="grid xl:grid-cols-2 gap-4 max-w-[1000px]">
+        <PriceCard />
         <section className="glass rounded-3xl p-6 space-y-4">
           <h2 className="font-semibold flex items-center gap-2">
             <Lock className="size-5 text-acc" /> كلمة سر الأدمن
@@ -382,5 +383,43 @@ export function Settings() {
         </section>
       </div>
     </>
+  );
+}
+
+function PriceCard() {
+  const current = useStore((s) => s.pricePerKm);
+  const [v, setV] = useState(String(current));
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setV(String(current)), [current]);
+  const n = Number(v.replace(',', '.'));
+  const valid = Number.isFinite(n) && n > 0 && n <= 100;
+  const save = async () => {
+    setBusy(true);
+    const ok = await setPricePerKm(Math.round(n * 100) / 100);
+    setBusy(false);
+    if (ok) toast(`سعر الكيلو بقى ${n} ج — اتطبق على كل الطلبات الجديدة`);
+  };
+  return (
+    <section className="glass rounded-3xl p-6 space-y-4 xl:col-span-2 border-acc/25!">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold flex items-center gap-2">
+          <Wallet className="size-5 text-acc" /> سعر الكيلو
+        </h2>
+        <span className="text-sm text-muted">
+          الحالي: <b className="text-text tabular-nums">{current} ج</b> للكيلو
+        </span>
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-40">
+          <Field id="price-per-km" label="جنيه لكل كيلو" value={v} onChange={(e) => setV(e.target.value)} inputMode="decimal" dir="ltr" className="text-right text-lg font-bold" />
+        </div>
+        <Button loading={busy} disabled={!valid || n === current} onClick={() => void save()}>
+          حفظ السعر
+        </Button>
+      </div>
+      <p className="text-xs text-muted">
+        مثال: مشوار 10 كم = {valid ? Math.ceil(Math.round(10 * n * 1000) / 1000) : '—'} ج. السعر الجديد بيتطبق على الطلبات الجديدة بس، والركاب بيشوفوه على طول من غير تحديث.
+      </p>
+    </section>
   );
 }

@@ -5,7 +5,7 @@ import { BikeArt, Logo, MotoArt } from '@/components/art';
 import { RouteLine, StatusPill, useUnread } from '@/components/shared';
 import { go } from '@/lib/router';
 import { useStore } from '@/lib/store';
-import { MOTO, PRICE_PER_KM } from '@/lib/config';
+import { MOTO } from '@/lib/config';
 import { modeOf } from '@/lib/actions';
 import type { User } from '@/lib/types';
 
@@ -19,6 +19,7 @@ export function Home({ user }: { user: User }) {
   const lines = useStore((s) => s.lines.filter((l) => l.active));
   const live = useStore((s) => s.bookings.find((b) => b.clientId === user.id && ['accepted', 'pending', 'countered'].includes(b.status)));
   const girls = modeOf(user.gender) === 'girls';
+  const perKm = useStore((s) => s.pricePerKm);
 
   return (
     <Page className="px-5 pt-[max(env(safe-area-inset-top),18px)] pb-6 space-y-6">
@@ -46,7 +47,7 @@ export function Home({ user }: { user: User }) {
             <Sparkles className="size-3" /> {girls ? 'سكة البنات' : 'سكة الشباب'}
           </Pill>
           <h2 className="mt-3 text-2xl font-bold leading-snug">رايح فين النهارده؟</h2>
-          <p className="mt-1 text-sm opacity-75">اشتراك شهري أو مشوار واحد — بـ {PRICE_PER_KM} ج للكيلو بس</p>
+          <p className="mt-1 text-sm opacity-75">اشتراك شهري أو مشوار واحد — بـ {perKm} ج للكيلو بس</p>
           <div className="mt-4 flex items-center gap-3 h-12 px-4 rounded-2xl bg-black/20 backdrop-blur">
             <MapPin className="size-5" />
             <span className="flex-1 text-sm opacity-80">اكتب وجهتك…</span>
@@ -96,7 +97,7 @@ export function Home({ user }: { user: User }) {
               </div>
               <div className="mt-3 flex items-end justify-between">
                 <span className="text-[11px] text-muted">من</span>
-                <span className="text-lg font-semibold text-grad">{PRICE_PER_KM} ج<span className="text-[11px] text-muted font-normal"> / كيلو</span></span>
+                <span className="text-lg font-semibold text-grad">{perKm} ج<span className="text-[11px] text-muted font-normal"> / كيلو</span></span>
               </div>
             </button>
           ))}
@@ -126,7 +127,7 @@ export function Home({ user }: { user: User }) {
             <div className="text-left">
               <p className="text-[11px] text-muted">سعر ثابت</p>
               <p className="text-xl font-bold text-grad tabular-nums">
-                {PRICE_PER_KM} ج<span className="text-xs text-muted font-normal"> / كيلو</span>
+                {perKm} ج<span className="text-xs text-muted font-normal"> / كيلو</span>
               </p>
             </div>
           </div>

@@ -163,6 +163,7 @@ export async function submitPayment(userId: string, ref: string, receipt?: strin
 
 /* ---------------- admin actions ---------------- */
 export const reviewCaptain = (userId: string, approve: boolean, reason?: string) => call('admin_review_captain', { p_user: userId, p_approve: approve, p_reason: reason ?? null });
+export const setPricePerKm = (price: number) => call('admin_set_price_per_km', { p_price: price });
 export const grantSubscription = (userId: string, days: number) => call('admin_grant_subscription', { p_user: userId, p_days: days });
 export const suspendCaptain = (userId: string, suspend: boolean, reason?: string) => call('admin_suspend_captain', { p_user: userId, p_suspend: suspend, p_reason: reason ?? null });
 export async function reviewPayment(userId: string, approve: boolean) {

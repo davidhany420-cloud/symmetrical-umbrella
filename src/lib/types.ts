@@ -132,6 +132,7 @@ export interface State {
   notices: Notice[];
   payments: PaymentLog[];
   live: LivePos[];
+  pricePerKm: number;
   sessionUserId: string | null;
   isAdmin: boolean;
 }

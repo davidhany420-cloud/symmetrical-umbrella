@@ -6,7 +6,7 @@ import { MotoArt } from '@/components/art';
 import { CaptainRow, RouteLine } from '@/components/shared';
 import { back, go, useRoute } from '@/lib/router';
 import { getState, useStore } from '@/lib/store';
-import { DAYS, MOTO, PRICE_PER_KM, WEEKS_PER_MONTH, tripPrice } from '@/lib/config';
+import { DAYS, MOTO, WEEKS_PER_MONTH, tripPrice } from '@/lib/config';
 import { roadKm } from '@/lib/route';
 import { egp } from '@/lib/format';
 import { NEARBY_KM, createBooking, modeOf, nearbyCaptains, userById } from '@/lib/actions';
@@ -30,7 +30,8 @@ export function Book({ user }: { user: User }) {
   const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [captainId, setCaptainId] = useState<string | null>(null);
 
-  // fixed price: road distance × PRICE_PER_KM (no haggling)
+  // fixed price: road distance × price per km from the database (no haggling)
+  const perKm = useStore((s) => s.pricePerKm);
   const [route, setRoute] = useState<{ km: number; minutes: number | null; estimated: boolean } | null>(null);
   const [measuring, setMeasuring] = useState(false);
   useEffect(() => {
@@ -47,7 +48,7 @@ export function Book({ user }: { user: User }) {
       alive = false;
     };
   }, [from.lat, from.lng, to.lat, to.lng]);
-  const price = route ? tripPrice(route.km, type, days) : 0;
+  const price = route ? tripPrice(route.km, type, days, perKm) : 0;
 
   // nearest available captains to the pickup point; re-evaluated whenever captains or positions change
   const captainsVersion = useStore((s) => s.captains);
@@ -139,7 +140,7 @@ export function Book({ user }: { user: User }) {
                 {(measuring || route) && (
                   <div className="flex items-center justify-between rounded-2xl bg-acc/[.07] border border-acc/25 px-4 h-14">
                     <span className="text-sm text-muted">{measuring ? 'بنحسب المسافة…' : `${route!.km.toFixed(1)} كم${route!.minutes ? ` · حوالي ${route!.minutes} دقيقة` : ''}`}</span>
-                    {route && <span className="text-lg font-bold text-grad tabular-nums">{egp(tripPrice(route.km, 'once', []))}</span>}
+                    {route && <span className="text-lg font-bold text-grad tabular-nums">{egp(tripPrice(route.km, 'once', [], perKm))}</span>}
                   </div>
                 )}
                 <Field label={type === 'monthly' ? 'معاد التحرك كل يوم' : 'معاد التحرك'} icon={<Clock3 />} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
@@ -208,7 +209,7 @@ export function Book({ user }: { user: User }) {
                   </div>
                   {route && (
                     <p className="mt-3 text-sm text-muted tabular-nums">
-                      {route.km.toFixed(1)} كم × {PRICE_PER_KM} ج للكيلو
+                      {route.km.toFixed(1)} كم × {perKm} ج للكيلو
                       {type === 'monthly' && ` × ${days.length} يوم × ${WEEKS_PER_MONTH} أسابيع`}
                     </p>
                   )}
