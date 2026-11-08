@@ -256,7 +256,7 @@ export function Toaster() {
               initial={{ opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              className="pointer-events-auto max-w-[420px] w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#11141d]/95 border border-line backdrop-blur-xl shadow-2xl"
+              className="pointer-events-none max-w-[420px] w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#11141d]/95 border border-line backdrop-blur-xl shadow-2xl"
             >
               <I className={cx('size-5 shrink-0', t.kind === 'ok' && 'text-ok', t.kind === 'err' && 'text-danger', t.kind === 'info' && 'text-acc')} />
               <span className="text-sm">{t.text}</span>
