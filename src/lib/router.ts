@@ -33,9 +33,12 @@ export function useExitGuard(enabled: boolean, onFirstPress: () => void) {
   useEffect(() => {
     if (!enabled) return;
     const mark = { felsekkaGuard: true };
-    if (!(history.state && history.state.felsekkaGuard)) history.pushState(mark, '', location.href);
+    const home = location.href;
+    if (!(history.state && history.state.felsekkaGuard)) history.pushState(mark, '', home);
     let armedAt = 0;
     const onPop = () => {
+      // in-app navigation to another screen also fires popstate — only react to Back landing on this same screen
+      if (location.href !== home) return;
       if (history.state && history.state.felsekkaGuard) return; // moving forward onto the guard
       if (Date.now() - armedAt < 2000) {
         window.removeEventListener('popstate', onPop);
@@ -43,7 +46,7 @@ export function useExitGuard(enabled: boolean, onFirstPress: () => void) {
         return;
       }
       armedAt = Date.now();
-      history.pushState(mark, '', location.href);
+      history.pushState(mark, '', home);
       onFirstPress();
     };
     window.addEventListener('popstate', onPop);

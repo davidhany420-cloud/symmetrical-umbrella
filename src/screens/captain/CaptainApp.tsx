@@ -10,7 +10,7 @@ import { mapsEnabled } from '@/lib/maps';
 import { startSharing, stopSharing, useSharing } from '@/lib/sharing';
 import { back, go, useExitGuard, useRoute } from '@/lib/router';
 import { useStore } from '@/lib/store';
-import { DAYS, INSTAPAY_HANDLE, SUBSCRIPTION_PRICE } from '@/lib/config';
+import { DAYS, INSTAPAY_HANDLE, INSTAPAY_LINK, SUBSCRIPTION_PRICE } from '@/lib/config';
 import { dateStr, egp, num, timeAgo } from '@/lib/format';
 import { canTakeRides, captainRespond, directionsUrl, isSubscribed, km, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
 import { toast } from '@/lib/toast';
@@ -362,12 +362,12 @@ function WalletScreen({ user, cap }: { user: User; cap: CaptainProfile }) {
   const [ref, setRef] = useState('');
   const [receipt, setReceipt] = useState<string>();
   const [paying, setPaying] = useState(false);
-  const copy = async () => {
+  const copy = async (text: string, what: string) => {
     try {
-      await navigator.clipboard.writeText(INSTAPAY_HANDLE);
-      toast('اتنسخ عنوان InstaPay');
+      await navigator.clipboard.writeText(text);
+      toast(`اتنسخ ${what}`);
     } catch {
-      toast(INSTAPAY_HANDLE, 'info');
+      toast(text, 'info');
     }
   };
   return (
@@ -379,18 +379,35 @@ function WalletScreen({ user, cap }: { user: User; cap: CaptainProfile }) {
           <>
             <Card className="!p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">المبلغ</span>
-                <span className="text-2xl font-bold text-grad">{egp(SUBSCRIPTION_PRICE)}</span>
+                <span className="text-sm text-muted">المبلغ المطلوب</span>
+                <button onClick={() => void copy(String(SUBSCRIPTION_PRICE), 'المبلغ')} className="flex items-center gap-2 text-2xl font-bold text-grad" aria-label="نسخ المبلغ">
+                  {egp(SUBSCRIPTION_PRICE)} <Copy className="size-4 text-muted" />
+                </button>
               </div>
               <ol className="space-y-3 text-sm">
-                <li className="flex gap-3"><Num n={1} /> افتح تطبيق InstaPay وحوّل المبلغ على:</li>
+                <li className="flex gap-3">
+                  <Num n={1} /> دوس الزرار — هيفتحلك تطبيق InstaPay على صفحة الدفع
+                </li>
               </ol>
-              <button onClick={copy} className="w-full h-12 rounded-2xl bg-acc/10 border border-acc/25 text-acc flex items-center justify-between px-4" dir="ltr">
-                <span className="font-semibold">{INSTAPAY_HANDLE}</span>
-                <Copy className="size-4" />
+              <a
+                href={INSTAPAY_LINK}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full h-14 rounded-2xl bg-[#5b2a86] hover:bg-[#6a3299] text-white font-bold flex items-center justify-center gap-2.5 shadow-lg shadow-[#5b2a86]/40 transition active:scale-[0.98]"
+              >
+                <span className="h-7 px-2 rounded-lg bg-white text-[#5b2a86] text-xs font-black grid place-items-center" dir="ltr">IPN</span>
+                ادفع {egp(SUBSCRIPTION_PRICE)} بـ InstaPay
+              </a>
+              <button onClick={() => void copy(INSTAPAY_HANDLE, 'عنوان InstaPay')} className="w-full h-10 rounded-xl bg-white/[.04] border border-line text-xs text-muted flex items-center justify-center gap-2" dir="ltr">
+                {INSTAPAY_HANDLE} <Copy className="size-3.5" />
               </button>
               <ol className="space-y-3 text-sm">
-                <li className="flex gap-3"><Num n={2} /> اكتب رقم العملية (المرجع) وارفع صورة الإيصال</li>
+                <li className="flex gap-3">
+                  <Num n={2} /> حوّل {egp(SUBSCRIPTION_PRICE)} بالظبط وارجع هنا
+                </li>
+                <li className="flex gap-3">
+                  <Num n={3} /> اكتب رقم العملية (المرجع) وارفع صورة الإيصال
+                </li>
               </ol>
               <Field label="رقم المرجع" icon={<Receipt />} value={ref} onChange={(e) => setRef(e.target.value.trim())} placeholder="مثلاً 123456789012" dir="ltr" className="text-right" />
               <Upload label="صورة الإيصال (اختياري)" icon={<Receipt />} value={receipt} onChange={setReceipt} />
