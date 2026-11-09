@@ -15,6 +15,14 @@ export interface Fix {
 }
 
 export const isNativeApp = () => Capacitor.isNativePlatform();
+/** Native GPS only when this app build actually contains the plugin (older APKs don't). */
+const useNativeGps = () => Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Geolocation');
+
+/** Last raw error, shown in small print so a screenshot tells us exactly what failed. */
+export let lastGeoError = '';
+const remember = (e: unknown) => {
+  lastGeoError = String((e as { message?: string })?.message ?? (e as { code?: number })?.code ?? e).slice(0, 120);
+};
 
 const nativeError = (e: unknown): LocateError => {
   const m = String((e as { message?: string })?.message ?? e).toLowerCase();
@@ -40,7 +48,7 @@ async function ensureNativePermission() {
 
 /** Current position: a quick fix first, then real GPS. Rejects with a LocateError. */
 export async function getFix(): Promise<Fix> {
-  if (isNativeApp()) {
+  if (useNativeGps()) {
     try {
       await ensureNativePermission();
       try {
@@ -49,6 +57,7 @@ export async function getFix(): Promise<Fix> {
         return toFix((await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 25000, maximumAge: 0 })).coords);
       }
     } catch (e) {
+      remember(e);
       throw typeof e === 'string' ? (e as LocateError) : nativeError(e);
     }
   }
@@ -63,6 +72,7 @@ export async function getFix(): Promise<Fix> {
   try {
     return toFix((await get({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 })).coords);
   } catch (e) {
+    remember(e);
     throw webError(e as GeolocationPositionError);
   }
 }
@@ -83,7 +93,7 @@ export async function watchFix(onFix: (f: Fix) => void, onError: (e: LocateError
   const fallback = async () => {
     // approximate location when precise GPS is silent
     try {
-      if (isNativeApp()) {
+      if (useNativeGps()) {
         const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
         if (!stopped) got(toFix(pos.coords));
       } else {
@@ -93,7 +103,8 @@ export async function watchFix(onFix: (f: Fix) => void, onError: (e: LocateError
         if (!stopped) got(toFix(pos.coords));
       }
       return true;
-    } catch {
+    } catch (e) {
+      remember(e);
       return false;
     }
   };
@@ -105,7 +116,7 @@ export async function watchFix(onFix: (f: Fix) => void, onError: (e: LocateError
   };
 
   let stopInner: () => void = () => {};
-  if (isNativeApp()) {
+  if (useNativeGps()) {
     try {
       await ensureNativePermission();
     } catch (e) {
@@ -114,7 +125,10 @@ export async function watchFix(onFix: (f: Fix) => void, onError: (e: LocateError
     }
     void fallback(); // quick first position
     const id = await Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }, (pos, err) => {
-      if (err) void handleError(nativeError(err));
+      if (err) {
+        remember(err);
+        void handleError(nativeError(err));
+      }
       else if (pos) got(toFix(pos.coords));
     });
     stopInner = () => void Geolocation.clearWatch({ id });
@@ -126,7 +140,10 @@ export async function watchFix(onFix: (f: Fix) => void, onError: (e: LocateError
     void fallback();
     const id = navigator.geolocation.watchPosition(
       (p) => got(toFix(p.coords)),
-      (e) => void handleError(webError(e)),
+      (e) => {
+        remember(e);
+        void handleError(webError(e));
+      },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 },
     );
     stopInner = () => navigator.geolocation.clearWatch(id);

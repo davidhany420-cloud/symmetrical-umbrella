@@ -3,6 +3,7 @@ import { LocateFixed, Loader2, MapPin } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cx } from './ui';
+import { lastGeoError } from '@/lib/geo';
 import { DARK_STYLE, LOCATE_HELP, currentPosition, findPlaces, loadMaps, placeName, provider, type LocateError, type Suggestion } from '@/lib/maps';
 import { toast } from '@/lib/toast';
 import type { Place } from '@/lib/types';
@@ -342,6 +343,7 @@ export function PlaceField({ label, icon, value, onChange, placeholder, near }: 
       {locErr && !pinned && (
         <div className="rounded-2xl border border-warn/30 bg-warn/[.06] p-3 text-xs space-y-1.5">
           <p className="font-semibold text-warn">{LOCATE_HELP[locErr].title}</p>
+          {lastGeoError && <p className="text-[10px] text-muted/70" dir="ltr">{lastGeoError}</p>}
           <ol className="list-decimal pr-4 space-y-0.5 text-muted">
             {LOCATE_HELP[locErr].steps.map((s) => (
               <li key={s}>{s}</li>

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { pushLocation, stopLocation } from './actions';
-import { watchFix, type Fix, type LocateError } from './geo';
+import { lastGeoError, watchFix, type Fix, type LocateError } from './geo';
 
 /**
  * The captain's location sharing. Lives outside React so it keeps running while
@@ -58,7 +58,7 @@ const SHARE_ERRORS: Record<LocateError, string> = {
 export function startSharing() {
   if (status.on) return;
   set({ on: true, error: null });
-  void watchFix(onPosition, (e) => set({ error: SHARE_ERRORS[e] })).then((stop) => {
+  void watchFix(onPosition, (e) => set({ error: SHARE_ERRORS[e] + (lastGeoError ? ` (${lastGeoError})` : '') })).then((stop) => {
     if (status.on) stopWatch = stop;
     else stop(); // sharing was stopped while permission was being asked
   });
