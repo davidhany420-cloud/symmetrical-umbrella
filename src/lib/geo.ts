@@ -43,8 +43,11 @@ export async function getFix(): Promise<Fix> {
   if (isNativeApp()) {
     try {
       await ensureNativePermission();
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
-      return toFix(pos.coords);
+      try {
+        return toFix((await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 })).coords);
+      } catch {
+        return toFix((await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 25000, maximumAge: 0 })).coords);
+      }
     } catch (e) {
       throw typeof e === 'string' ? (e as LocateError) : nativeError(e);
     }
@@ -64,8 +67,44 @@ export async function getFix(): Promise<Fix> {
   }
 }
 
-/** Follow the position until the returned stop() is called. */
+/**
+ * Follow the position until the returned stop() is called.
+ * Starts with a quick approximate fix (Wi-Fi / cell towers) so the captain shows up right away,
+ * then keeps the precise GPS stream. A GPS timeout is only reported when no position at all
+ * has arrived for a while — indoors GPS often times out while Wi-Fi location still works.
+ */
 export async function watchFix(onFix: (f: Fix) => void, onError: (e: LocateError) => void): Promise<() => void> {
+  let lastFixAt = 0;
+  let stopped = false;
+  const got = (f: Fix) => {
+    lastFixAt = Date.now();
+    onFix(f);
+  };
+  const fallback = async () => {
+    // approximate location when precise GPS is silent
+    try {
+      if (isNativeApp()) {
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+        if (!stopped) got(toFix(pos.coords));
+      } else {
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }),
+        );
+        if (!stopped) got(toFix(pos.coords));
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const handleError = async (e: LocateError) => {
+    if (stopped) return;
+    if (e === 'denied' || e === 'unsupported' || e === 'insecure') return onError(e);
+    if (Date.now() - lastFixAt < 90_000) return; // a recent position is still good
+    if (!(await fallback())) onError(e);
+  };
+
+  let stopInner: () => void = () => {};
   if (isNativeApp()) {
     try {
       await ensureNativePermission();
@@ -73,20 +112,32 @@ export async function watchFix(onFix: (f: Fix) => void, onError: (e: LocateError
       onError(typeof e === 'string' ? (e as LocateError) : nativeError(e));
       return () => {};
     }
-    const id = await Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }, (pos, err) => {
-      if (err) onError(nativeError(err));
-      else if (pos) onFix(toFix(pos.coords));
+    void fallback(); // quick first position
+    const id = await Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }, (pos, err) => {
+      if (err) void handleError(nativeError(err));
+      else if (pos) got(toFix(pos.coords));
     });
-    return () => void Geolocation.clearWatch({ id });
+    stopInner = () => void Geolocation.clearWatch({ id });
+  } else {
+    if (!('geolocation' in navigator)) {
+      onError('unsupported');
+      return () => {};
+    }
+    void fallback();
+    const id = navigator.geolocation.watchPosition(
+      (p) => got(toFix(p.coords)),
+      (e) => void handleError(webError(e)),
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 },
+    );
+    stopInner = () => navigator.geolocation.clearWatch(id);
   }
-  if (!('geolocation' in navigator)) {
-    onError('unsupported');
-    return () => {};
-  }
-  const id = navigator.geolocation.watchPosition(
-    (p) => onFix(toFix(p.coords)),
-    (e) => onError(webError(e)),
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
-  );
-  return () => navigator.geolocation.clearWatch(id);
+  // keep the captain visible even if precise GPS stays silent: refresh the approximate fix every minute
+  const keepAlive = setInterval(() => {
+    if (Date.now() - lastFixAt > 60_000) void fallback();
+  }, 30_000);
+  return () => {
+    stopped = true;
+    clearInterval(keepAlive);
+    stopInner();
+  };
 }
