@@ -1,0 +1,14 @@
+{
+  "appId": "com.felsekka.app",
+  "appName": "في السكة",
+  "webDir": "dist",
+  "server": {
+    "url": "https://davidhany420-cloud.github.io/symmetrical-umbrella/",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#05060a",
+    "allowMixedContent": false
+  }
+}

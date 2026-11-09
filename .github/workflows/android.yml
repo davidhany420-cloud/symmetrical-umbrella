@@ -1,0 +1,54 @@
+name: Android APK
+
+# Builds the Android app (a shell that opens the live site, so content updates
+# never need a new APK) and publishes it on the "Android APK" release page.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Publish on the release page
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk fel-sekka.apk
+          NOTES="نسخة أندرويد من في السكة — بتفتح نفس الموقع، فأي تحديث على الموقع بيوصل للتطبيق لوحده. اتبنت من ${GITHUB_SHA::7}."
+          if gh release view android-latest >/dev/null 2>&1; then
+            gh release upload android-latest fel-sekka.apk --clobber
+            gh release edit android-latest --notes "$NOTES"
+          else
+            gh release create android-latest fel-sekka.apk --title "في السكة — Android APK" --notes "$NOTES" --latest
+          fi
