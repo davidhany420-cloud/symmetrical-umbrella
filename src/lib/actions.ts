@@ -239,9 +239,13 @@ export const captainStage = (id: string, stage: 'arrived' | 'started' | 'finishe
 export const rateCaptain = (id: string, rating: number) => call('rate_captain', { p_booking: id, p_rating: rating });
 export const rateRider = (id: string, rating: number) => call('rate_rider', { p_booking: id, p_rating: rating });
 export async function requestAccountDeletion() {
-  const ok = await call('request_account_deletion');
-  if (ok) await logout();
-  return ok;
+  const { error } = await db.rpc('request_account_deletion');
+  if (error) {
+    reportError(friendly(error));
+    return false;
+  }
+  await logout(); // straight to sign-out — no need to reload this account's data first
+  return true;
 }
 export const cancelBooking = (id: string) => call('cancel_booking', { p_booking: id });
 export const completeBooking = (id: string, rating: number) => call('complete_booking', { p_booking: id, p_rating: rating });
