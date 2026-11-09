@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { pushLocation, stopLocation } from './actions';
+import { watchFix, type Fix, type LocateError } from './geo';
 
 /**
  * The captain's location sharing. Lives outside React so it keeps running while
@@ -13,19 +14,19 @@ const set = (s: Partial<Status>) => {
   ls.forEach((l) => l());
 };
 
-let watchId: number | null = null;
+let stopWatch: (() => void) | null = null;
 let lastPush = 0;
-let pending: GeolocationPosition | null = null;
+let pending: Fix | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let wake: { release: () => Promise<void> } | null = null;
 
-async function send(p: GeolocationPosition) {
+async function send(p: Fix) {
   lastPush = Date.now();
-  const ok = await pushLocation(p.coords.latitude, p.coords.longitude, p.coords.heading, p.coords.speed);
+  const ok = await pushLocation(p.lat, p.lng, p.heading, p.speed);
   set(ok ? { lastSent: Date.now(), error: null } : { error: 'مقدرناش نبعت موقعك — اتأكد من النت' });
 }
 
-function onPosition(p: GeolocationPosition) {
+function onPosition(p: Fix) {
   const wait = 8000 - (Date.now() - lastPush);
   if (wait <= 0) return void send(p);
   pending = p;
@@ -46,21 +47,27 @@ async function keepAwake() {
   }
 }
 
+const SHARE_ERRORS: Record<LocateError, string> = {
+  denied: 'لازم تسمح للتطبيق بالوصول للموقع (الإعدادات ← التطبيقات ← في السكة ← الأذونات)',
+  off: 'الـ GPS مقفول — شغّل "الموقع" من الإعدادات السريعة',
+  timeout: 'مش قادرين نحدد مكانك دلوقتي — اتأكد إن الـ GPS شغّال',
+  unsupported: 'الموبايل ده مش بيدعم تحديد الموقع',
+  insecure: 'افتح التطبيق من الرابط الأصلي',
+};
+
 export function startSharing() {
   if (status.on) return;
-  if (!navigator.geolocation) return set({ error: 'الموبايل ده مش بيدعم تحديد الموقع' });
   set({ on: true, error: null });
-  watchId = navigator.geolocation.watchPosition(onPosition, (e) => set({ error: e.code === e.PERMISSION_DENIED ? 'لازم تسمح بالوصول للموقع من إعدادات المتصفح' : 'مش قادرين نحدد موقعك دلوقتي' }), {
-    enableHighAccuracy: true,
-    maximumAge: 5000,
-    timeout: 20000,
+  void watchFix(onPosition, (e) => set({ error: SHARE_ERRORS[e] })).then((stop) => {
+    if (status.on) stopWatch = stop;
+    else stop(); // sharing was stopped while permission was being asked
   });
   void keepAwake();
 }
 
 export async function stopSharing() {
-  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-  watchId = null;
+  stopWatch?.();
+  stopWatch = null;
   if (timer) clearTimeout(timer);
   timer = null;
   pending = null;

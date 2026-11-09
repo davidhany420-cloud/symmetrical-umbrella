@@ -1,4 +1,5 @@
 import { GOOGLE_MAPS_KEY } from './config';
+import { isNativeApp } from './geo';
 
 /**
  * Two map providers behind one interface:
@@ -180,36 +181,22 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   }
 }
 
-export type LocateError = 'unsupported' | 'insecure' | 'denied' | 'off' | 'timeout';
+export type { LocateError } from './geo';
+import type { LocateError } from './geo';
+import { getFix } from './geo';
 
-const getPos = (opts: PositionOptions) =>
-  new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts));
-
-/**
- * The phone's location. Tries a quick fix first (network / recent fix), then real GPS.
- * Rejects with a LocateError the UI can explain.
- */
-export async function currentPosition(): Promise<GeolocationPosition> {
-  if (!window.isSecureContext) throw 'insecure' as LocateError;
-  if (!('geolocation' in navigator)) throw 'unsupported' as LocateError;
-  const fail = (e: GeolocationPositionError): LocateError => (e.code === e.PERMISSION_DENIED ? 'denied' : e.code === e.POSITION_UNAVAILABLE ? 'off' : 'timeout');
-  try {
-    return await getPos({ enableHighAccuracy: false, timeout: 7000, maximumAge: 120000 });
-  } catch (e) {
-    const err = fail(e as GeolocationPositionError);
-    if (err === 'denied') throw err;
-  }
-  try {
-    return await getPos({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-  } catch (e) {
-    throw fail(e as GeolocationPositionError);
-  }
+/** The phone's location (native GPS inside the Android app, browser location otherwise). */
+export async function currentPosition(): Promise<{ coords: { latitude: number; longitude: number } }> {
+  const f = await getFix();
+  return { coords: { latitude: f.lat, longitude: f.lng } };
 }
 
 export const LOCATE_HELP: Record<LocateError, { title: string; steps: string[] }> = {
   denied: {
-    title: 'المتصفح مش سامح للتطبيق يعرف مكانك',
-    steps: ['دوس على علامة القفل 🔒 جنب الرابط فوق', 'اختار "الأذونات" أو "إعدادات الموقع"', 'خلّي "الموقع" على "سماح"، وبعدين دوس "موقعي" تاني'],
+    title: 'التطبيق مش مسموح له يعرف مكانك',
+    steps: isNativeApp()
+      ? ['افتح إعدادات الموبايل ← التطبيقات ← في السكة', 'الأذونات ← الموقع', 'اختار "السماح أثناء استخدام التطبيق"، وارجع دوس "موقعي"']
+      : ['دوس على علامة القفل 🔒 جنب الرابط فوق', 'اختار "الأذونات" أو "إعدادات الموقع"', 'خلّي "الموقع" على "سماح"، وبعدين دوس "موقعي" تاني'],
   },
   off: {
     title: 'الـ GPS مقفول في الموبايل',

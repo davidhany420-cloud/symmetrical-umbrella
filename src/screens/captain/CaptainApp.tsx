@@ -163,6 +163,8 @@ function Dashboard({ user, cap, unread }: { user: User; cap: CaptainProfile; unr
 
       {!canWork && <SubscriptionCard cap={cap} compact />}
 
+      {canWork && cap.online && <LocationStatus />}
+
       <div className="grid grid-cols-3 gap-3">
         <Stat icon={<TrendingUp />} v={egp(earned)} l="الدخل" />
         <Stat icon={<Star />} v={cap.rating.toFixed(1)} l="التقييم" />
@@ -261,6 +263,36 @@ function RideMap({ b, me }: { b: Booking; me?: { lat: number; lng: number; headi
         />
       )}
     </>
+  );
+}
+
+/** Tells an online captain whether riders can actually find them. */
+function LocationStatus() {
+  const sh = useSharing();
+  if (sh.error) {
+    return (
+      <div className="rounded-2xl border border-danger/35 bg-danger/[.07] p-3.5 flex gap-3 text-sm">
+        <Radio className="size-5 text-danger shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold text-danger">الركاب مش شايفينك دلوقتي</p>
+          <p className="text-xs text-muted mt-1">{sh.error}</p>
+          <button onClick={() => void stopSharing().then(() => startSharing())} className="mt-2 h-8 px-3 rounded-lg bg-white/[.06] border border-line text-xs">
+            جرّب تاني
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-ok/30 bg-ok/[.06] px-3.5 py-2.5 flex items-center gap-2.5 text-xs">
+      <span className="relative flex size-2.5">
+        <span className="absolute inset-0 rounded-full bg-ok ping-soft" />
+        <span className="relative size-2.5 rounded-full bg-ok" />
+      </span>
+      <span className="text-muted">
+        {sh.lastSent ? <>موقعك ظاهر للركاب القريبين · آخر تحديث {timeAgo(sh.lastSent)}</> : 'بنحدد مكانك…'} — سيب التطبيق مفتوح
+      </span>
+    </div>
   );
 }
 
