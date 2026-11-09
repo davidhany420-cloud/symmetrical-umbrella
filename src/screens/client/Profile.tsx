@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { LogOut, ShieldCheck, Bell, Headphones, Route, Star } from 'lucide-react';
 import { Avatar, Button, Card, Empty, Page, Pill, TopBar } from '@/components/ui';
+import { DeleteAccount } from '@/components/shared';
 import { useStore } from '@/lib/store';
 import { logout, markNoticesRead, modeOf } from '@/lib/actions';
 import { num, timeAgo } from '@/lib/format';
@@ -58,6 +59,7 @@ export function Profile({ user }: { user: User }) {
         <Button variant="danger" className="w-full" icon={<LogOut className="size-4" />} onClick={logout}>
           تسجيل الخروج
         </Button>
+        <DeleteAccount />
       </div>
     </Page>
   );

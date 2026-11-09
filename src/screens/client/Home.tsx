@@ -63,7 +63,7 @@ export function Home({ user }: { user: User }) {
             <span className="text-xs text-muted flex items-center gap-1.5">
               <span className="size-1.5 rounded-full bg-acc animate-pulse" /> مشوارك الحالي
             </span>
-            <StatusPill s={live.status} />
+            <StatusPill s={live.status} stage={live.stage} />
           </div>
           <RouteLine from={live.from} to={live.to} compact />
           {live.status === 'accepted' && (

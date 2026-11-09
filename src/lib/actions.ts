@@ -20,6 +20,8 @@ const ERRORS: [RegExp, string][] = [
   [/price mismatch|distance mismatch/i, 'السعر اتغيّر — ارجع خطوة وجرّب تاني'],
   [/pickup and destination required/i, 'حدد مكان الركوب والوجهة على الخريطة'],
   [/price is fixed/i, 'السعر ثابت — تقدر تقبل أو تعتذر بس'],
+  [/request expired/i, 'الطلب ده انتهى — الراكب مستناش أكتر من دقيقتين'],
+  [/wrong stage/i, 'الخطوة دي مش في وقتها — حدّث الصفحة'],
   [/too many pending requests/i, 'عندك طلبين مستنيين رد — استنى أو الغي واحد الأول'],
   [/Database error saving new user/i, 'البيانات دي مش مظبوطة — راجع الاسم ورقم الموبايل'],
   [/rate limit/i, 'محاولات كتير ورا بعض — استنى دقيقة وجرّب تاني'],
@@ -229,6 +231,18 @@ export async function createBooking(input: Omit<Booking, 'id' | 'status' | 'crea
 
 export const captainRespond = (id: string, action: 'accept' | 'reject') => call('captain_respond', { p_booking: id, p_action: action });
 export const clientAnswerCounter = (id: string, accept: boolean) => call('client_answer_counter', { p_booking: id, p_accept: accept });
+/** A request is only valid for this long; then it expires on its own. */
+export const REQUEST_TTL_MS = 2 * 60_000;
+export const requestAgeLeft = (b: Booking, now = Date.now()) => Math.max(0, REQUEST_TTL_MS - (now - b.createdAt));
+export const expireRequest = (id: string) => call('expire_request', { p_booking: id });
+export const captainStage = (id: string, stage: 'arrived' | 'started' | 'finished') => call('captain_stage', { p_booking: id, p_stage: stage });
+export const rateCaptain = (id: string, rating: number) => call('rate_captain', { p_booking: id, p_rating: rating });
+export const rateRider = (id: string, rating: number) => call('rate_rider', { p_booking: id, p_rating: rating });
+export async function requestAccountDeletion() {
+  const ok = await call('request_account_deletion');
+  if (ok) await logout();
+  return ok;
+}
 export const cancelBooking = (id: string) => call('cancel_booking', { p_booking: id });
 export const completeBooking = (id: string, rating: number) => call('complete_booking', { p_booking: id, p_rating: rating });
 export const sendMessage = (id: string, _from: 'client' | 'captain', text: string) => (text.trim() ? call('send_message', { p_booking: id, p_text: text.trim() }) : Promise.resolve(false));

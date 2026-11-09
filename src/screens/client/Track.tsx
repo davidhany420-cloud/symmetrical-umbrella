@@ -59,8 +59,12 @@ export function Track({ id }: { id: string }) {
   // heading to the rider until close to the pickup point, then to the destination
   let phase: 'coming' | 'riding' | null = null;
   let dist: number | null = null;
+  // the captain's own progress wins over distance guesses
   if (fresh && live) {
-    if (pickup && km(live, pickup) > 0.15) {
+    if (b.stage === 'started' && drop) {
+      phase = 'riding';
+      dist = km(live, drop);
+    } else if (pickup && b.stage !== 'arrived' && km(live, pickup) > 0.15) {
       phase = 'coming';
       dist = km(live, pickup);
     } else if (drop) {

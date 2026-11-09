@@ -2,12 +2,13 @@ import { useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { useStore, onStoreError } from './lib/store';
 import { useRoute, go } from './lib/router';
-import { modeOf } from './lib/actions';
+import { logout, modeOf } from './lib/actions';
 import { toast } from './lib/toast';
 import { Toaster } from './components/ui';
 import { Logo } from './components/art';
 import { useUpdateAvailable } from './lib/updates';
 import { Auth } from './screens/Auth';
+import { Privacy } from './screens/Privacy';
 import { ClientApp } from './screens/client/ClientApp';
 import { CaptainApp } from './screens/captain/CaptainApp';
 
@@ -26,16 +27,24 @@ export default function App() {
 
   useEffect(() => onStoreError((m) => toast(m, 'err')), []);
 
+  // a closed (deleted) account can't keep using the app
+  useEffect(() => {
+    if (user?.deletedAt) {
+      void logout().then(() => toast('الحساب ده اتقفل بطلب صاحبه', 'info'));
+    }
+  }, [user?.deletedAt]);
+
   // Route guards
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || section === 'privacy') return; // the privacy policy is public
     if (!user && !['', 'auth'].includes(section)) go('/', true);
     if (user?.role === 'client' && (section === 'captain' || section === '' || section === 'auth')) go('/home', true);
     if (user?.role === 'captain' && section !== 'captain') go('/captain', true);
   }, [user, section, ready]);
 
   let screen;
-  if (!ready) screen = <Splash key="splash" />;
+  if (section === 'privacy') screen = <Privacy key="privacy" />;
+  else if (!ready) screen = <Splash key="splash" />;
   // anyone opening the link lands on sign-in
   else if (!user) screen = <Auth key="auth" />;
   else if (user.role === 'captain') screen = <CaptainApp user={user} />;

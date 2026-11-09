@@ -143,7 +143,7 @@ export function Riders() {
 }
 
 /* ================= Rides ================= */
-const TONES: Record<BookingStatus, 'acc' | 'ok' | 'warn' | 'danger' | 'muted'> = { pending: 'warn', countered: 'acc', accepted: 'ok', rejected: 'danger', cancelled: 'muted', done: 'muted' };
+const TONES: Record<BookingStatus, 'acc' | 'ok' | 'warn' | 'danger' | 'muted'> = { pending: 'warn', countered: 'acc', accepted: 'ok', rejected: 'danger', cancelled: 'muted', done: 'muted', expired: 'muted' };
 
 export function Rides() {
   const s = useStore((x) => x);
@@ -151,7 +151,7 @@ export function Rides() {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const nameOf = (id: string) => s.users.find((u) => u.id === id)?.name ?? '—';
-  const groups = { live: ['pending', 'countered', 'accepted'], done: ['done'], cancelled: ['cancelled', 'rejected'] } as Record<string, string[]>;
+  const groups = { live: ['pending', 'countered', 'accepted'], done: ['done'], cancelled: ['cancelled', 'rejected', 'expired'] } as Record<string, string[]>;
   const rows = s.bookings.filter((b) => f === 'all' || groups[f].includes(b.status)).filter((b) => !q || `${b.from} ${b.to} ${nameOf(b.clientId)} ${nameOf(b.captainId)}`.includes(q.trim()));
   const sel = s.bookings.find((b) => b.id === open);
   return (
@@ -352,6 +352,7 @@ export function Settings() {
       <PageHead title="الإعدادات" />
       <div className="grid xl:grid-cols-2 gap-4 max-w-[1000px]">
         <PriceCard />
+        <DeletionRequests />
         <section className="glass rounded-3xl p-6 space-y-4">
           <h2 className="font-semibold flex items-center gap-2">
             <Lock className="size-5 text-acc" /> كلمة سر الأدمن
@@ -420,6 +421,32 @@ function PriceCard() {
       <p className="text-xs text-muted">
         مثال: مشوار 10 كم = {valid ? Math.ceil(Math.round(10 * n * 1000) / 1000) : '—'} ج. السعر الجديد بيتطبق على الطلبات الجديدة بس، والركاب بيشوفوه على طول من غير تحديث.
       </p>
+    </section>
+  );
+}
+
+/** Accounts closed by their owners — data must be kept 180 days (Law 87/2018), then removed in Supabase. */
+function DeletionRequests() {
+  const closed = useStore((s) => s.users.filter((u) => u.deletedAt).sort((a, b) => a.deletedAt! - b.deletedAt!));
+  if (!closed.length) return null;
+  const DAY = 86_400_000;
+  return (
+    <section className="glass rounded-3xl p-6 space-y-3 xl:col-span-2">
+      <h2 className="font-semibold">طلبات مسح الحساب ({closed.length})</h2>
+      <p className="text-xs text-muted">الحسابات دي اتقفلت. بعد 180 يوم من الطلب امسحها نهائياً من Supabase: Authentication ← Users.</p>
+      <div className="divide-y divide-line rounded-2xl border border-line">
+        {closed.map((u) => {
+          const left = Math.ceil((u.deletedAt! + 180 * DAY - Date.now()) / DAY);
+          return (
+            <div key={u.id} className="flex items-center justify-between px-4 py-3 text-sm">
+              <span>
+                {u.name} <span className="text-muted text-xs">· {u.role === 'captain' ? 'كابتن' : 'راكب'} · <span dir="ltr">{u.phone}</span></span>
+              </span>
+              {left > 0 ? <Pill tone="muted">فاضل {left} يوم</Pill> : <Pill tone="warn">جاهز للمسح النهائي</Pill>}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }

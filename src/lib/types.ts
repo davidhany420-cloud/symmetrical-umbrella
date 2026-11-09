@@ -11,6 +11,9 @@ export interface User {
   phone: string;
   gender: Gender;
   createdAt: number;
+  riderRating?: number;
+  riderRatingCount?: number;
+  deletedAt?: number;
 }
 
 export interface CaptainProfile {
@@ -61,7 +64,11 @@ export type BookingStatus =
   | 'accepted'
   | 'rejected'
   | 'cancelled'
-  | 'done';
+  | 'done'
+  | 'expired';    // captain didn't answer within 2 minutes
+
+/** Captain-driven progress of an accepted ride. */
+export type RideStage = 'arrived' | 'started';
 
 export interface Booking {
   id: string;
@@ -86,6 +93,9 @@ export interface Booking {
   toLat?: number;
   toLng?: number;
   distanceKm?: number;
+  stage?: RideStage;
+  riderRating?: number;
+  finishedAt?: number;
 }
 
 /** A captain's last position while they share location */

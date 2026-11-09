@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Phone, Lock, User as UserIcon, Eye, EyeOff, Bike, Users } from 'lucide-react';
 import { Button, Field, Page, Segmented, cx } from '@/components/ui';
 import { MotoArt, Wordmark } from '@/components/art';
-import { useRoute } from '@/lib/router';
+import { go, useRoute } from '@/lib/router';
 import { login, register } from '@/lib/actions';
 import { validPhone } from '@/lib/format';
 import { toast } from '@/lib/toast';
@@ -127,6 +127,12 @@ export function Auth() {
           {tab === 'login' ? 'معندكش حساب؟ ' : 'عندك حساب؟ '}
           <button onClick={() => setTab(tab === 'login' ? 'register' : 'login')} className="text-acc font-medium">
             {tab === 'login' ? 'سجّل دلوقتي' : 'ادخل'}
+          </button>
+        </p>
+        <p className="mt-6 text-center text-[11px] text-muted/70">
+          بتسجيلك إنت موافق على{' '}
+          <button onClick={() => go('/privacy')} className="underline underline-offset-4">
+            سياسة الخصوصية
           </button>
         </p>
 

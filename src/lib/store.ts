@@ -119,7 +119,7 @@ async function loadOnce() {
 
   const [profiles, captains, priv, payments, lines, bookings, messages, notices, admin, live, phones] = await Promise.all([
     // phone numbers are private: they come only from visible_phones() below
-    db.from('profiles').select('id, role, name, gender, created_at'),
+    db.from('profiles').select('id, role, name, gender, created_at, rider_rating, rider_rating_count, deleted_at'),
     db.from('captains').select('*'),
     db.from('captain_private').select('*'),
     db.from('payments').select('*').order('created_at', { ascending: false }),
@@ -149,6 +149,9 @@ async function loadOnce() {
     role: p.role,
     name: p.name,
     phone: phoneBy.get(p.id) ?? '',
+    riderRating: p.rider_rating !== undefined && p.rider_rating !== null ? Number(p.rider_rating) : undefined,
+    riderRatingCount: p.rider_rating_count ?? undefined,
+    deletedAt: ms(p.deleted_at),
     gender: p.gender,
     createdAt: ms(p.created_at)!,
   }));
@@ -210,6 +213,9 @@ async function loadOnce() {
     toLat: b.to_lat ?? undefined,
     toLng: b.to_lng ?? undefined,
     distanceKm: b.distance_km !== null && b.distance_km !== undefined ? Number(b.distance_km) : undefined,
+    stage: b.stage ?? undefined,
+    riderRating: b.rider_rating ?? undefined,
+    finishedAt: ms(b.finished_at),
   }));
 
   const nts: Notice[] = (notices.data ?? []).map((n) => ({ id: String(n.id), to: n.to_admin ? 'admin' : n.to_user, text: n.text, at: ms(n.created_at)!, read: n.read }));

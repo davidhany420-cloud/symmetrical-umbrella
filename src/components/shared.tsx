@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Send, ShieldCheck, Star } from 'lucide-react';
-import { Avatar, Pill, cx } from './ui';
+import { Avatar, Button, Pill, Sheet, cx } from './ui';
+import { requestAccountDeletion } from '@/lib/actions';
+import { toast } from '@/lib/toast';
 import { go } from '@/lib/router';
 import { bikeClass } from '@/lib/config';
 import { clock, num } from '@/lib/format';
@@ -47,8 +49,18 @@ export const STATUS: Record<BookingStatus, { label: string; tone: 'acc' | 'ok' |
   rejected: { label: 'اتعتذر', tone: 'danger' },
   cancelled: { label: 'ملغي', tone: 'muted' },
   done: { label: 'خلص', tone: 'muted' },
+  expired: { label: 'ما اتردّش عليه', tone: 'muted' },
 };
-export const StatusPill = ({ s }: { s: BookingStatus }) => <Pill tone={STATUS[s].tone}>{STATUS[s].label}</Pill>;
+/** Label for a ride, taking the captain's progress into account. */
+export function statusOf(b: { status: BookingStatus; stage?: string }) {
+  if (b.status === 'accepted' && b.stage === 'arrived') return { label: 'الكابتن وصل', tone: 'acc' as const };
+  if (b.status === 'accepted' && b.stage === 'started') return { label: 'في الطريق', tone: 'acc' as const };
+  return STATUS[b.status] ?? { label: b.status, tone: 'muted' as const };
+}
+export const StatusPill = ({ s, stage }: { s: BookingStatus; stage?: string }) => {
+  const st = statusOf({ status: s, stage });
+  return <Pill tone={st.tone}>{st.label}</Pill>;
+};
 
 /* ---------- Captain card ---------- */
 export function CaptainRow({ user, cap, right, onClick, selected }: { user: User; cap: CaptainProfile; right?: ReactNode; onClick?: () => void; selected?: boolean }) {
@@ -155,4 +167,48 @@ export function Chat({ booking, me, onSend }: { booking: Booking; me: 'client' |
 
 export function useUnread(to: string) {
   return useStore((s) => s.notices.filter((n) => n.to === to && !n.read).length);
+}
+
+/* ---------- Delete my account (Google Play requires this in the app) ---------- */
+export function DeleteAccount() {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3 pt-2">
+        <button onClick={() => go('/privacy')} className="text-xs text-muted underline underline-offset-4">
+          سياسة الخصوصية
+        </button>
+        <button onClick={() => setOpen(true)} className="text-xs text-danger/80 hover:text-danger">
+          امسح حسابي
+        </button>
+      </div>
+      <Sheet open={open} onClose={() => setOpen(false)} title="مسح الحساب">
+        <div className="space-y-4 text-sm">
+          <p>حسابك هيتقفل على طول: هتخرج من التطبيق، ومحدش هيقدر يطلب منك أو يشوفك، وأي مشوار مفتوح هيتلغي.</p>
+          <p className="text-muted text-xs">القانون بيلزمنا نحتفظ ببيانات المشاوير 180 يوم، وبعدها بتتمسح نهائياً.</p>
+          <label className="block space-y-1.5">
+            <span className="text-xs text-muted">للتأكيد اكتب كلمة "امسح"</span>
+            <input value={typed} onChange={(e) => setTyped(e.target.value)} className="w-full h-12 px-4 rounded-2xl glass outline-none focus:border-danger/50" />
+          </label>
+          <Button
+            variant="danger"
+            size="lg"
+            className="w-full"
+            disabled={typed.trim() !== 'امسح'}
+            loading={busy}
+            onClick={async () => {
+              setBusy(true);
+              const ok = await requestAccountDeletion();
+              setBusy(false);
+              if (ok) toast('حسابك اتقفل — مع السلامة 👋', 'info');
+            }}
+          >
+            امسح حسابي نهائياً
+          </Button>
+        </div>
+      </Sheet>
+    </>
+  );
 }

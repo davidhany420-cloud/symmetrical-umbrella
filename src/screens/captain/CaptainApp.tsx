@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { Home as HomeIcon, Inbox, Wallet, UserRound, Power, Hourglass, Check, X, MessageCircle, Phone, Copy, Receipt, Star, Bell, LogOut, Zap, TrendingUp, ShieldAlert, Radio, Navigation, Flag } from 'lucide-react';
-import { Avatar, Button, Card, Empty, Field, Page, Pill, SectionTitle, TopBar, cx } from '@/components/ui';
+import { Home as HomeIcon, Inbox, Wallet, UserRound, Power, Hourglass, Check, X, MessageCircle, Phone, Copy, Receipt, Star, Bell, LogOut, Zap, TrendingUp, ShieldAlert, Radio, Navigation, Flag, MapPinned, Bike } from 'lucide-react';
+import { Avatar, Button, Card, ConfirmButton, Empty, Field, Page, Pill, SectionTitle, Stars, TopBar, cx } from '@/components/ui';
+import { useTick } from '@/lib/useTick';
 import { BikeArt, Logo } from '@/components/art';
-import { BottomNav, Chat, RouteLine, StatusPill, useUnread } from '@/components/shared';
+import { BottomNav, Chat, DeleteAccount, RouteLine, StatusPill, useUnread } from '@/components/shared';
 import { Apply, Upload } from './Apply';
 import { MapView } from '@/components/maps';
 import { mapsEnabled } from '@/lib/maps';
@@ -12,7 +13,7 @@ import { back, go, useExitGuard, useRoute } from '@/lib/router';
 import { useStore } from '@/lib/store';
 import { DAYS, INSTAPAY_HANDLE, INSTAPAY_LINK, SUBSCRIPTION_PRICE } from '@/lib/config';
 import { dateStr, egp, num, timeAgo } from '@/lib/format';
-import { canTakeRides, captainRespond, directionsUrl, isSubscribed, km, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
+import { canTakeRides, captainRespond, captainStage, directionsUrl, isSubscribed, km, rateRider, requestAgeLeft, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
 import { toast } from '@/lib/toast';
 import type { Booking, CaptainProfile, User } from '@/lib/types';
 
@@ -21,7 +22,7 @@ const exitHint = () => toast('دوس رجوع تاني علشان تخرج من 
 export function CaptainApp({ user }: { user: User }) {
   const { parts } = useRoute();
   const cap = useStore((s) => s.captains.find((c) => c.userId === user.id));
-  const pendingCount = useStore((s) => s.bookings.filter((b) => b.captainId === user.id && b.status === 'pending').length);
+  const pendingCount = useStore((s) => s.bookings.filter((b) => b.captainId === user.id && b.status === 'pending' && requestAgeLeft(b) > 0).length);
   const unread = useUnread(user.id);
   const [, section, id] = parts;
   const sharing = useSharing();
@@ -120,8 +121,10 @@ function SubscriptionCard({ cap, compact }: { cap: CaptainProfile; compact?: boo
 
 function Dashboard({ user, cap, unread }: { user: User; cap: CaptainProfile; unread: number }) {
   const mine = useStore((s) => s.bookings.filter((b) => b.captainId === user.id));
-  const pending = mine.filter((b) => b.status === 'pending');
+  useTick(5000); // drop requests the moment they expire
+  const pending = mine.filter((b) => b.status === 'pending' && requestAgeLeft(b) > 0);
   const active = mine.filter((b) => b.status === 'accepted');
+  const toRate = mine.filter((b) => b.status === 'done' && !b.riderRating && b.finishedAt && Date.now() - b.finishedAt < 24 * 3_600_000);
   const earned = mine.filter((b) => b.status === 'accepted' || b.status === 'done').reduce((a, b) => a + (b.price ?? 0), 0);
   const canWork = isSubscribed(cap);
 
@@ -176,6 +179,10 @@ function Dashboard({ user, cap, unread }: { user: User; cap: CaptainProfile; unr
         {pending.length ? pending.slice(0, 2).map((b) => <RequestCard key={b.id} b={b} />) : <Card className="text-center text-sm text-muted !py-6">مفيش طلبات جديدة دلوقتي</Card>}
       </section>
 
+      {toRate.map((b) => (
+        <RateRider key={b.id} b={b} />
+      ))}
+
       {active.length > 0 && <ShareCard />}
 
       {active.length > 0 && (
@@ -203,6 +210,9 @@ const Stat = ({ icon, v, l }: { icon: ReactNode; v: string; l: string }) => (
 function RequestCard({ b }: { b: Booking }) {
   const client = useStore((s) => s.users.find((u) => u.id === b.clientId));
   const me = useStore((s) => s.live.find((l) => l.captainId === b.captainId));
+  const now = useTick(1000);
+  const left = requestAgeLeft(b, now);
+  if (left === 0) return null;
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-3">
@@ -211,8 +221,15 @@ function RequestCard({ b }: { b: Booking }) {
           <Avatar name={client?.name ?? '؟'} size={40} />
           <div className="flex-1">
             <p className="font-medium text-sm">{client?.name}</p>
-            <p className="text-[11px] text-muted">
-              {b.type === 'monthly' ? 'اشتراك شهري' : 'مشوار واحد'} · {timeAgo(b.createdAt)}
+            <p className="text-[11px] text-muted flex items-center gap-1.5">
+              {client?.riderRatingCount ? (
+                <span className="inline-flex items-center gap-0.5 text-warn">
+                  <Star className="size-3 fill-warn" /> {client.riderRating?.toFixed(1)} ({client.riderRatingCount})
+                </span>
+              ) : (
+                <span>راكب جديد</span>
+              )}
+              · <span className={cx('tabular-nums', left < 30_000 ? 'text-danger' : 'text-warn')}>رد خلال {Math.ceil(left / 1000)} ث</span>
             </p>
           </div>
           <div className="text-left">
@@ -353,14 +370,88 @@ function ActiveRide({ b }: { b: Booking }) {
           <MessageCircle className="size-4" /> شات
         </button>
       </div>
+      <StageButton b={b} />
+    </Card>
+  );
+}
+
+/** The captain moves the ride forward: arrived → started → finished. */
+function StageButton({ b }: { b: Booking }) {
+  const [busy, setBusy] = useState(false);
+  const go2 = async (stage: 'arrived' | 'started' | 'finished', msg: string) => {
+    setBusy(true);
+    const ok = await captainStage(b.id, stage);
+    setBusy(false);
+    if (ok) toast(msg);
+  };
+  const steps = [
+    { done: !!b.stage, label: 'وصلت' },
+    { done: b.stage === 'started', label: 'بدأ' },
+    { done: false, label: 'وصلنا' },
+  ];
+  return (
+    <div className="mt-3 space-y-2.5">
+      <div className="flex items-center gap-1.5 text-[10px] text-muted">
+        {steps.map((st, i) => (
+          <span key={st.label} className="flex-1 flex items-center gap-1.5">
+            <span className={cx('h-1 flex-1 rounded-full', st.done ? 'bg-grad' : 'bg-white/10')} />
+            <span className={st.done ? 'text-acc' : ''}>{st.label}</span>
+            {i < steps.length - 1 && <span />}
+          </span>
+        ))}
+      </div>
+      {!b.stage && (
+        <Button size="lg" className="w-full" loading={busy} onClick={() => void go2('arrived', 'الراكب اتبلّغ إنك وصلت 📍')} icon={<MapPinned className="size-5" />}>
+          وصلت لمكان الراكب
+        </Button>
+      )}
+      {b.stage === 'arrived' && (
+        <Button size="lg" className="w-full" loading={busy} onClick={() => void go2('started', 'المشوار بدأ — توصل بالسلامة 🏍️')} icon={<Bike className="size-5" />}>
+          الراكب ركب — ابدأ المشوار
+        </Button>
+      )}
+      {b.stage === 'started' && (
+        <ConfirmButton size="lg" className="w-full" confirmLabel="دوس تاني لإنهاء المشوار" loading={busy} onConfirm={() => void go2('finished', 'المشوار خلص 🎉')} icon={<Flag className="size-5" />}>
+          وصلنا — إنهاء المشوار
+        </ConfirmButton>
+      )}
+    </div>
+  );
+}
+
+/** After a ride, the captain rates the rider. */
+function RateRider({ b }: { b: Booking }) {
+  const client = useStore((s) => s.users.find((u) => u.id === b.clientId));
+  const [stars, setStars] = useState(5);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Card className="!p-4 border-acc/30!">
+      <p className="text-sm font-semibold">المشوار مع {client?.name} خلص — قيّم الراكب</p>
+      <p className="text-[11px] text-muted mt-0.5">تقييمك بيساعد الكباتن التانيين يعرفوا الراكب</p>
+      <div className="mt-3 flex items-center justify-between">
+        <Stars value={stars} onChange={setStars} size={30} />
+        <Button
+          size="sm"
+          loading={busy}
+          onClick={async () => {
+            setBusy(true);
+            const ok = await rateRider(b.id, stars);
+            setBusy(false);
+            if (ok) toast('شكراً على تقييمك');
+          }}
+        >
+          إرسال
+        </Button>
+      </div>
     </Card>
   );
 }
 
 function Requests({ user }: { user: User }) {
   const mine = useStore((s) => s.bookings.filter((b) => b.captainId === user.id));
-  const pending = mine.filter((b) => b.status === 'pending');
-  const rest = mine.filter((b) => b.status !== 'pending');
+  useTick(5000);
+  const pending = mine.filter((b) => b.status === 'pending' && requestAgeLeft(b) > 0);
+  const rest = mine.filter((b) => !pending.includes(b));
   return (
     <Page>
       <TopBar title="الطلبات" sub={`${num(pending.length)} طلب جديد`} onBack={() => go('/captain')} />
@@ -376,7 +467,7 @@ function Requests({ user }: { user: User }) {
               {rest.map((b) => (
                 <Card key={b.id} className="!p-3.5" onClick={b.status === 'accepted' ? () => go(`/captain/chat/${b.id}`) : undefined}>
                   <div className="flex items-center justify-between mb-2">
-                    <StatusPill s={b.status} />
+                    <StatusPill s={b.status} stage={b.stage} />
                     <span className="text-sm font-semibold">{egp(b.price ?? b.counter ?? b.offer)}</span>
                   </div>
                   <RouteLine from={b.from} to={b.to} compact />
@@ -510,6 +601,7 @@ function Me({ user, cap }: { user: User; cap: CaptainProfile }) {
         <Button variant="danger" className="w-full" icon={<LogOut className="size-4" />} onClick={() => void stopSharing().finally(logout)}>
           تسجيل الخروج
         </Button>
+        <DeleteAccount />
       </div>
     </Page>
   );

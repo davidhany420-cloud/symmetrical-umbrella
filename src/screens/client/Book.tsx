@@ -25,8 +25,10 @@ export function Book({ user }: { user: User }) {
   const [step, setStep] = useState(0);
   // one ride, right now — no subscriptions or scheduling
   const type: BookingType = 'once';
-  const [from, setFrom] = useState<Place>({ label: line?.from ?? '' });
-  const [to, setTo] = useState<Place>({ label: line?.to ?? '' });
+  // "request another captain": same trip, without the captain who didn't answer
+  const prev = useStore((s) => s.bookings.find((b) => b.id === query.get('rebook')));
+  const [from, setFrom] = useState<Place>(prev ? { label: prev.from, lat: prev.fromLat, lng: prev.fromLng } : { label: line?.from ?? '' });
+  const [to, setTo] = useState<Place>(prev ? { label: prev.to, lat: prev.toLat, lng: prev.toLng } : { label: line?.to ?? '' });
   const [captainId, setCaptainId] = useState<string | null>(null);
 
   // fixed price: road distance × price per km from the database (no haggling)
@@ -65,7 +67,10 @@ export function Book({ user }: { user: User }) {
       clearInterval(t);
     };
   }, [pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-  const captains = useMemo(() => nearbyCaptains(mode, pickup, serverNearby), [mode, captainsVersion, liveVersion, serverNearby, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  const captains = useMemo(
+    () => nearbyCaptains(mode, pickup, serverNearby).filter((x) => x.c.userId !== prev?.captainId),
+    [mode, captainsVersion, liveVersion, serverNearby, pickup?.lat, pickup?.lng, prev?.captainId], // eslint-disable-line react-hooks/exhaustive-deps
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canNext = [!!route, !!captainId, !!route][step];
 
