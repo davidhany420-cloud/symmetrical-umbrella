@@ -4,6 +4,7 @@ import App from './App';
 import { initStore } from './lib/store';
 import './index.css';
 import { fixInsets } from './lib/insets';
+import { initNotifications } from './lib/notify';
 
 fixInsets();
 
@@ -14,6 +15,7 @@ if (window.top !== window.self) {
 }
 
 initStore('app').then(() => {
+  initNotifications();
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />

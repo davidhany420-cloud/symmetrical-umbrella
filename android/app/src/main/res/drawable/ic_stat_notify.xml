@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- notification bar icon: white silhouette (Android tints it) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M5,19a3,3 0,1 1,0 -6a3,3 0,0 1,0 6zM19,19a3,3 0,1 1,0 -6a3,3 0,0 1,0 6zM14,5h3l3.2,6.4A4.5,4.5 0,0 0,16 14.5L16,15h-5l-2,-4H5.5L4.8,9.5H10l1.5,3H15l-2.2,-5.5H14z"/>
+</vector>
