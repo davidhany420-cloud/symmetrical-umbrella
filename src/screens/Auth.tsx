@@ -53,7 +53,7 @@ export function Auth() {
 
   return (
     <Page>
-      <header className="px-5 pt-[max(env(safe-area-inset-top),18px)] pb-2 flex items-center justify-between">
+      <header className="px-5 pt-[max(var(--sat),18px)] pb-2 flex items-center justify-between">
         <Wordmark />
       </header>
       <div className="px-5 pb-10">

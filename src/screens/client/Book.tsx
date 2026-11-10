@@ -240,7 +240,7 @@ export function Book({ user }: { user: User }) {
         </AnimatePresence>
       </div>
 
-      <div className="sticky bottom-0 px-5 pt-3 pb-[max(env(safe-area-inset-bottom),18px)] bg-gradient-to-t from-bg via-bg to-transparent">
+      <div className="sticky bottom-0 px-5 pt-3 pb-[max(var(--sab),18px)] bg-gradient-to-t from-bg via-bg to-transparent">
         <Button size="lg" className="w-full" disabled={!canNext} loading={sending} onClick={next} icon={step === 2 ? <Send className="size-5 -scale-x-100" /> : undefined}>
           {step === 2 ? `اطلب الكابتن · ${egp(price)}` : 'التالي'}
         </Button>

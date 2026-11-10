@@ -129,7 +129,7 @@ function Dashboard({ user, cap, unread }: { user: User; cap: CaptainProfile; unr
   const canWork = isSubscribed(cap);
 
   return (
-    <Page className="px-5 pt-[max(env(safe-area-inset-top),18px)] pb-6 space-y-5">
+    <Page className="px-5 pt-[max(var(--sat),18px)] pb-6 space-y-5">
       <header className="flex items-center gap-3">
         <Logo size={44} />
         <div className="flex-1">

@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { initStore } from './lib/store';
 import './index.css';
+import { fixInsets } from './lib/insets';
+
+fixInsets();
 
 // Refuse to run inside another site's frame (click-jacking protection).
 if (window.top !== window.self) {

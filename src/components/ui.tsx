@@ -125,7 +125,7 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
 /* ---------- Layout ---------- */
 export function TopBar({ title, sub, onBack, right }: { title: ReactNode; sub?: ReactNode; onBack?: () => void; right?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-30 px-5 pt-[max(env(safe-area-inset-top),16px)] pb-3 bg-bg/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 px-5 pt-[max(var(--sat),16px)] pb-3 bg-bg/70 backdrop-blur-xl">
       <div className="flex items-center gap-3">
         {onBack && (
           <IconBtn onClick={onBack} aria-label="رجوع">
@@ -167,7 +167,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="relative w-full max-w-[460px] max-h-[88vh] overflow-y-auto rounded-t-[32px] bg-[#0b0d14] border-t border-line p-5 pb-[max(env(safe-area-inset-bottom),20px)]"
+            className="relative w-full max-w-[460px] max-h-[88vh] overflow-y-auto rounded-t-[32px] bg-[#0b0d14] border-t border-line p-5 pb-[max(var(--sab),20px)]"
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/15" />
             {title && (
@@ -245,7 +245,7 @@ export function Toaster() {
   );
   const Icon = { ok: CheckCircle2, err: AlertTriangle, info: Info };
   return (
-    <div className="fixed top-0 inset-x-0 z-[60] flex flex-col items-center gap-2 pt-[max(env(safe-area-inset-top),14px)] px-4 pointer-events-none">
+    <div className="fixed top-0 inset-x-0 z-[60] flex flex-col items-center gap-2 pt-[max(var(--sat),14px)] px-4 pointer-events-none">
       <AnimatePresence>
         {items.map((t) => {
           const I = Icon[t.kind];

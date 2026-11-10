@@ -3,6 +3,9 @@
 /* ---------- Design tokens ---------- */
 :root {
   color-scheme: dark;
+  /* screen insets (status bar / nav bar); main.tsx fills them in when the phone doesn't report them */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
   --bg: #05060a;
   --surface: rgba(255, 255, 255, 0.045);
   --surface-2: rgba(255, 255, 255, 0.08);

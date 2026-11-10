@@ -20,7 +20,7 @@ export interface NavItem {
 }
 export function BottomNav({ items, active }: { items: NavItem[]; active: string }) {
   return (
-    <nav className="sticky bottom-0 z-40 px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-2 bg-gradient-to-t from-bg via-bg/90 to-transparent">
+    <nav className="sticky bottom-0 z-40 px-4 pb-[max(var(--sab),12px)] pt-2 bg-gradient-to-t from-bg via-bg/90 to-transparent">
       <div className="glass rounded-[26px] h-[68px] px-2 flex items-center justify-around">
         {items.map((it) =>
           it.primary ? (
@@ -139,7 +139,7 @@ export function Chat({ booking, me, onSend }: { booking: Booking; me: 'client' |
           ),
         )}
       </div>
-      <div className="px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-2 space-y-2">
+      <div className="px-4 pb-[max(var(--sab),14px)] pt-2 space-y-2">
         <div className="flex gap-2 overflow-x-auto">
           {quick.map((q) => (
             <button key={q} onClick={() => onSend(q)} className="shrink-0 h-8 px-3 rounded-full glass text-xs text-muted hover:text-text">

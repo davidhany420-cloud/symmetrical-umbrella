@@ -22,7 +22,7 @@ export function Home({ user }: { user: User }) {
   const perKm = useStore((s) => s.pricePerKm);
 
   return (
-    <Page className="px-5 pt-[max(env(safe-area-inset-top),18px)] pb-6 space-y-6">
+    <Page className="px-5 pt-[max(var(--sat),18px)] pb-6 space-y-6">
       <header className="flex items-center gap-3">
         <Logo size={44} />
         <div className="flex-1">

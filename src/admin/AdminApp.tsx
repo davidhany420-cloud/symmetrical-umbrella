@@ -307,7 +307,7 @@ function UpdateBanner({ page }: { page: 'index.html' | 'admin.html' }) {
   return (
     <button
       onClick={() => window.location.reload()}
-      className="fixed z-[70] bottom-[max(env(safe-area-inset-bottom),96px)] left-1/2 -translate-x-1/2 h-11 px-5 rounded-2xl bg-grad text-acc-ink text-sm font-semibold glow shadow-2xl whitespace-nowrap"
+      className="fixed z-[70] bottom-[max(var(--sab),96px)] left-1/2 -translate-x-1/2 h-11 px-5 rounded-2xl bg-grad text-acc-ink text-sm font-semibold glow shadow-2xl whitespace-nowrap"
     >
       فيه تحديث جديد — دوس هنا
     </button>

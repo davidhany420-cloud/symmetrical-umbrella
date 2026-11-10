@@ -108,7 +108,7 @@ export function Track({ id }: { id: string }) {
           </IconBtn>
         }
       />
-      <div className="px-4 flex-1 flex flex-col gap-3 pb-[max(env(safe-area-inset-bottom),16px)]">
+      <div className="px-4 flex-1 flex flex-col gap-3 pb-[max(var(--sab),16px)]">
         <div className="relative flex-1 min-h-[360px]">
           <MapView points={points} follow={fresh ? 'captain' : undefined} className="absolute inset-0" fallback={<LiveMap progress={sim} className="absolute inset-0" />} />
           <div className="absolute top-3 inset-x-3 flex justify-between items-start pointer-events-none">
