@@ -4,8 +4,8 @@ import type { BikeClassId } from './types';
 export const INSTAPAY_HANDLE = 'chrismagdy2020@instapay';
 /** Opens the InstaPay app on the transfer screen to the account above (from the account's QR code). */
 export const INSTAPAY_LINK = 'https://ipn.eg/C/Q/chrismagdy2020/instapay?ISIGN=23052603MEYCIQDgbQNAx8Esa+ixJOhOoY3MQMc4ySZWa/tUNxADDPKQkwIhALZCCuNKGHfvFUdgh6geIBROuRAB24eDSIO+RUcuh/EE';
-export const SUBSCRIPTION_PRICE = 200; // جنيه للسنة
-export const SUBSCRIPTION_DAYS = 365;
+export const SUBSCRIPTION_PRICE = 200; // جنيه للشهر
+export const SUBSCRIPTION_DAYS = 30;
 export const SUPPORT_WHATSAPP = '201000000000';
 
 /* ---------- Google Maps (browser key, restrict it to your site's address in Google Cloud) ---------- */

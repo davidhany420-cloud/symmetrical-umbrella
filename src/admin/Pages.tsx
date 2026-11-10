@@ -30,7 +30,7 @@ export function Payments() {
 
   return (
     <>
-      <PageHead title="المدفوعات" sub={`اشتراك الكابتن ${egp(SUBSCRIPTION_PRICE)} في السنة على InstaPay · ${INSTAPAY_HANDLE}`} actions={<div className="glass rounded-2xl px-5 py-3 text-left"><div className="text-[11px] text-muted">إجمالي المؤكد</div><div className="text-xl font-bold tabular-nums">{egp(total)}</div></div>} />
+      <PageHead title="المدفوعات" sub={`اشتراك الكابتن ${egp(SUBSCRIPTION_PRICE)} في الشهر على InstaPay · ${INSTAPAY_HANDLE}`} actions={<div className="glass rounded-2xl px-5 py-3 text-left"><div className="text-[11px] text-muted">إجمالي المؤكد</div><div className="text-xl font-bold tabular-nums">{egp(total)}</div></div>} />
 
       <h2 className="text-sm text-muted mb-3">مستنية تأكيد ({num(pending.length)})</h2>
       {pending.length === 0 ? (
@@ -63,7 +63,7 @@ export function Payments() {
                 <p className="text-xs text-muted">من غير صورة إيصال — طابق رقم المرجع في InstaPay</p>
               )}
               <div className="grid grid-cols-2 gap-2">
-                <Button size="sm" icon={<Check className="size-4" />} onClick={() => { reviewPayment(c.userId, true); toast(`اتفعّل اشتراك ${nameOf(c.userId)} لمدة سنة`); }}>
+                <Button size="sm" icon={<Check className="size-4" />} onClick={() => { reviewPayment(c.userId, true); toast(`اتفعّل اشتراك ${nameOf(c.userId)} لمدة شهر`); }}>
                   تأكيد
                 </Button>
                 <Button size="sm" variant="danger" icon={<X className="size-4" />} onClick={() => { reviewPayment(c.userId, false); toast('اترفض التحويل واتبلّغ الكابتن', 'info'); }}>
@@ -377,7 +377,7 @@ export function Settings() {
             </div>
             <div className="flex justify-between px-4 py-3">
               <dt className="text-muted">اشتراك الكابتن</dt>
-              <dd>{egp(SUBSCRIPTION_PRICE)} / سنة</dd>
+              <dd>{egp(SUBSCRIPTION_PRICE)} / شهر</dd>
             </div>
           </dl>
           <p className="text-xs text-muted">بتتغير من ملف src/lib/config.ts</p>

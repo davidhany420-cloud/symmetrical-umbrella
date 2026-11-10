@@ -11,7 +11,7 @@ import { mapsEnabled } from '@/lib/maps';
 import { startSharing, stopSharing, useSharing } from '@/lib/sharing';
 import { back, go, useExitGuard, useRoute } from '@/lib/router';
 import { useStore } from '@/lib/store';
-import { DAYS, INSTAPAY_HANDLE, INSTAPAY_LINK, SUBSCRIPTION_PRICE } from '@/lib/config';
+import { DAYS, INSTAPAY_HANDLE, INSTAPAY_LINK, SUBSCRIPTION_DAYS, SUBSCRIPTION_PRICE } from '@/lib/config';
 import { dateStr, egp, num, timeAgo } from '@/lib/format';
 import { canTakeRides, captainRespond, captainStage, directionsUrl, isSubscribed, km, rateRider, requestAgeLeft, logout, markNoticesRead, sendMessage, setOnline, submitPayment } from '@/lib/actions';
 import { toast } from '@/lib/toast';
@@ -91,12 +91,12 @@ function Pending({ user, suspended, reason }: { user: User; suspended?: boolean;
 function SubscriptionCard({ cap, compact }: { cap: CaptainProfile; compact?: boolean }) {
   const active = isSubscribed(cap);
   const daysLeft = active ? Math.ceil((cap.activeUntil! - Date.now()) / 86_400_000) : 0;
-  const pct = Math.min(100, (daysLeft / 365) * 100);
+  const pct = Math.min(100, (daysLeft / SUBSCRIPTION_DAYS) * 100);
   return (
     <Card className={cx('!p-5 relative overflow-hidden', !active && 'border-warn/40!')}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-muted">الاشتراك السنوي</p>
+          <p className="text-xs text-muted">الاشتراك الشهري</p>
           <p className="text-xl font-bold mt-1">{active ? <span className="text-grad">{num(daysLeft)} يوم فاضلين</span> : cap.pendingPayment ? 'الدفع بيتراجع' : cap.activeUntil ? 'الاشتراك منتهي' : 'فعّل اشتراكك'}</p>
         </div>
         {active ? <Pill tone="ok">شغّال</Pill> : cap.pendingPayment ? <Pill tone="warn">قيد المراجعة</Pill> : <Pill tone={cap.activeUntil ? 'danger' : 'warn'}>{cap.activeUntil ? 'منتهي' : 'مش مفعّل'}</Pill>}
@@ -502,7 +502,7 @@ function WalletScreen({ user, cap }: { user: User; cap: CaptainProfile }) {
           <>
             <Card className="!p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">المبلغ المطلوب</span>
+                <span className="text-sm text-muted">المبلغ المطلوب · شهر</span>
                 <button onClick={() => void copy(String(SUBSCRIPTION_PRICE), 'المبلغ')} className="flex items-center gap-2 text-2xl font-bold text-grad" aria-label="نسخ المبلغ">
                   {egp(SUBSCRIPTION_PRICE)} <Copy className="size-4 text-muted" />
                 </button>
